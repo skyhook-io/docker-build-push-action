@@ -1,6 +1,6 @@
 # Docker Build and Push Action
 
-[![Release](https://github.com/KoalaOps/docker-build-push-action/actions/workflows/release.yml/badge.svg)](https://github.com/KoalaOps/docker-build-push-action/actions/workflows/release.yml)
+[![Release](https://github.com/skyhook-io/docker-build-push-action/actions/workflows/release.yml/badge.svg)](https://github.com/skyhook-io/docker-build-push-action/actions/workflows/release.yml)
 
 A thin wrapper around the official `docker/build-push-action` that simplifies common use cases while maintaining full compatibility.
 
@@ -47,7 +47,7 @@ The simplest way to use this action - just provide the image repository and prim
 
 ```yaml
 # Single registry
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: myregistry.io/myapp
     base_tag: v1.2.3
@@ -58,7 +58,7 @@ The simplest way to use this action - just provide the image repository and prim
 
 # Multiple registries (newline-delimited)
 # Note: You must authenticate to each registry before this action
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: |
       ghcr.io/${{ github.repository }}
@@ -71,7 +71,7 @@ The simplest way to use this action - just provide the image repository and prim
 ### Manual Tags (Explicit Control)
 
 ```yaml
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     # Tags are newline-delimited (one per line)
     tags: |
@@ -175,20 +175,20 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
 
 ```yaml
 # Simple case - generates v1.2.3, sha-abc1234, and latest (if on default branch)
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: ghcr.io/${{ github.repository }}
     base_tag: v${{ github.event.release.tag_name }}
 
 # Include branch/PR tags for development builds
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: myregistry.io/myapp
     base_tag: ${{ github.ref_name }}-${{ github.run_number }}
     include_ref_tags: true  # Adds branch name or pr-123 tags
 
 # Clean release tags only
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: myregistry.io/myapp
     base_tag: v1.2.3
@@ -207,7 +207,7 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
     username: ${{ github.actor }}
     password: ${{ secrets.GITHUB_TOKEN }}
 
-- uses: KoalaOps/cloud-login@v1
+- uses: skyhook-io/cloud-login@v1
   with:
     provider: aws
     region: us-east-1
@@ -215,7 +215,7 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
     login_to_container_registry: true
 
 # Then push to all registries with the same tags
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: |
       ghcr.io/${{ github.repository }}
@@ -226,7 +226,7 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
 ### Build for Multiple Architectures
 
 ```yaml
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     tags: myregistry.io/myapp:latest
     platforms: linux/amd64,linux/arm64,linux/arm/v7
@@ -236,7 +236,7 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
 ### Build with Build Arguments
 
 ```yaml
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     tags: myregistry.io/myapp:${{ github.sha }}
     build_args: |
@@ -248,7 +248,7 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
 ### Build Specific Target Stage
 
 ```yaml
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     tags: myregistry.io/myapp:test
     target: test
@@ -268,7 +268,7 @@ strategy:
         image: myorg/myapp
 
 steps:
-  - uses: KoalaOps/docker-build-push-action@v1
+  - uses: skyhook-io/docker-build-push-action@v1
     with:
       tags: ${{ matrix.registry }}/${{ matrix.image }}:${{ github.ref_name }}
 ```
@@ -277,7 +277,7 @@ steps:
 
 ```yaml
 - id: build
-  uses: KoalaOps/docker-build-push-action@v1
+  uses: skyhook-io/docker-build-push-action@v1
   with:
     tags: myregistry.io/myapp:v1.2.3
 
@@ -293,7 +293,7 @@ steps:
 
 ```yaml
 # Generate SBOM and provenance for supply chain security
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: myregistry.io/myapp
     base_tag: v1.2.3
@@ -305,7 +305,7 @@ steps:
 
 ```yaml
 # Configure buildx with custom driver and settings
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: myregistry.io/myapp
     base_tag: v1.2.3
@@ -317,7 +317,7 @@ steps:
     buildx_platforms: linux/amd64,linux/arm64
 
 # Use remote BuildKit instance
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: myregistry.io/myapp
     base_tag: v1.2.3
@@ -325,7 +325,7 @@ steps:
     buildx_endpoint: tcp://buildkit.example.com:8125
 
 # Configure buildx with specific builder instance
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: myregistry.io/myapp
     base_tag: v1.2.3
@@ -337,7 +337,7 @@ steps:
     buildx_use: true
 
 # Use specific buildx version with custom flags
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     image: myregistry.io/myapp
     base_tag: v1.2.3
@@ -363,9 +363,9 @@ This action is fully compatible with `docker/build-push-action`. To migrate:
       user/repo:${{ github.sha }}
 ```
 
-### After (KoalaOps/docker-build-push-action)
+### After (skyhook-io/docker-build-push-action)
 ```yaml
-- uses: KoalaOps/docker-build-push-action@v1
+- uses: skyhook-io/docker-build-push-action@v1
   with:
     tags: |
       user/repo:latest

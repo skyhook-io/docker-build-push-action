@@ -1,6 +1,6 @@
 name: 'Docker Multi-Registry Build Push'
 description: 'Thin wrapper around docker/build-push-action with smart tagging and multi-registry support'
-author: 'KoalaOps'
+author: 'Skyhook'
 
 branding:
   icon: 'package'
