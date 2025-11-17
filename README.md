@@ -127,9 +127,15 @@ The simplest way to use this action - just provide the image repository and prim
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `push` | Push to registry | No | `true` |
-| `load` | Load into Docker daemon (mutually exclusive with push) | No | `false` |
+| `push` | Push to registry (shorthand for `type=registry` output) | No | `true` |
+| `load` | Load into Docker daemon (shorthand for `type=docker` output). Can be combined with `push` | No | `false` |
+| `outputs` | List of output destinations (e.g., `type=local,dest=path`). Automatically configured when both `push` and `load` are true. When specified, must be compatible with `push`/`load` settings | No | - |
 | `pull` | Always pull newer base images | No | `false` |
+
+**Note**: The action supports three ways to configure outputs:
+1. **Simple**: Use `push: true` and/or `load: true` (recommended for most cases)
+2. **Automatic multi-output**: Set both `push: true` and `load: true` - automatically uses multiple outputs
+3. **Advanced**: Use `outputs` parameter for custom output types (must be compatible with `push`/`load` if specified)
 
 ### Security Configuration
 
@@ -254,6 +260,55 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
     target: test
     load: true  # Load for local testing
     push: false
+```
+
+### Push and Load Simultaneously
+
+The action supports three ways to configure outputs for different use cases:
+
+#### 1. Simple: Push and Load Together (Recommended)
+
+```yaml
+# Just set both to true - the action handles the rest!
+- uses: skyhook-io/docker-build-push-action@v1
+  with:
+    image: myregistry.io/myapp
+    base_tag: v1.2.3
+    push: true
+    load: true
+    # Automatically uses: outputs = "type=registry,push=true\ntype=docker"
+```
+
+#### 2. Advanced: Custom Outputs with Validation
+
+```yaml
+# Use custom outputs for additional destinations
+- uses: skyhook-io/docker-build-push-action@v1
+  with:
+    image: myregistry.io/myapp
+    base_tag: v1.2.3
+    push: true  # Must match: outputs includes type=registry
+    load: true  # Must match: outputs includes type=docker
+    outputs: |
+      type=registry,push=true
+      type=docker
+      type=local,dest=./artifacts
+    # The action validates compatibility automatically
+```
+
+#### 3. Custom Outputs Only (No push/load shortcuts)
+
+```yaml
+# Full control with outputs parameter
+- uses: skyhook-io/docker-build-push-action@v1
+  with:
+    image: myregistry.io/myapp
+    base_tag: v1.2.3
+    push: false  # Don't use shortcuts
+    load: false
+    outputs: |
+      type=oci,dest=./image.tar
+      type=local,dest=./output
 ```
 
 ### Using with Matrix Strategy
@@ -389,7 +444,13 @@ This action uses docker/metadata-action to automatically generate rich OCI label
 
 - Automatically sets up Docker Buildx and QEMU (for multi-arch builds)
 - Registry authentication must be configured separately for each registry
-- Cannot use `push: true` and `load: true` together (validated automatically)
+- **Output Configuration**:
+  - Can use `push: true` and `load: true` together - automatically configures multiple outputs (requires BuildKit 0.13.0+)
+  - `push` parameter is a shorthand for `type=registry` output
+  - `load` parameter is a shorthand for `type=docker` output
+  - When using custom `outputs`, the action validates compatibility with `push`/`load` settings
+  - `push: true` requires `outputs` to include `type=registry` (if `outputs` is specified)
+  - `load: true` requires `outputs` to include `type=docker` (if `outputs` is specified)
 - When using multi-registry support, the same image layers are pushed to all registries
 - Uses docker/metadata-action for consistent label and tag generation
 - Order of tags is preserved (using stable de-duplication)
