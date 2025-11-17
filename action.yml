@@ -65,9 +65,12 @@ inputs:
     required: false
     default: 'true'
   load:
-    description: 'Load into local Docker (mutually exclusive with push)'
+    description: 'Load into local Docker daemon (can be combined with push for automatic multiple outputs)'
     required: false
     default: 'false'
+  outputs:
+    description: 'List of output destinations (format: type=<type>,<key>=<value>). When both push and load are true, this is automatically configured'
+    required: false
   no_cache:
     description: 'Disable cache'
     required: false
@@ -195,11 +198,6 @@ runs:
         set -euo pipefail
         to_lines() { tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' ; }
         
-        if [[ "${{ inputs.push }}" == "true" && "${{ inputs.load }}" == "true" ]]; then
-          echo "::error::Cannot use both 'push: true' and 'load: true'."
-          exit 1
-        fi
-        
         # Warn about multi-platform with load
         if [[ "${{ inputs.load }}" == "true" && "${{ inputs.platforms }}" == *","* ]]; then
           echo "::warning::Loading multi-platform images is not fully supported. Only the native platform will be loaded into Docker."
@@ -278,6 +276,68 @@ runs:
         echo "📝 Tags to build:"
         printf "%s\n" "$TAGS" | sed 's/^/  - /'
 
+    - name: Prepare outputs configuration
+      id: prepare_outputs
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # 1. Initialize local outputs with user input or empty string
+        ORIGINAL_OUTPUTS="${{ inputs.outputs }}"
+        LOCAL_OUTPUTS=""
+
+        # 2. Handle push parameter
+        if [[ "${{ inputs.push }}" == "true" ]]; then
+          if [[ -z "$ORIGINAL_OUTPUTS" ]]; then
+            # 2.1 If push is used and original outputs is empty, add type=registry
+            LOCAL_OUTPUTS="type=registry,push=true"
+          else
+            # 2.2 If push is used and original outputs is non-empty, validate it has type=registry
+            if ! echo "$ORIGINAL_OUTPUTS" | grep -q "type=registry"; then
+              echo "::error::Configuration error: 'push: true' requires 'outputs' to include 'type=registry'"
+              echo "::error::Either set 'push: false' or add 'type=registry,push=true' to your outputs"
+              exit 1
+            fi
+            LOCAL_OUTPUTS="$ORIGINAL_OUTPUTS"
+          fi
+        elif [[ -n "$ORIGINAL_OUTPUTS" ]]; then
+          LOCAL_OUTPUTS="$ORIGINAL_OUTPUTS"
+        fi
+
+        # 3. Handle load parameter
+        if [[ "${{ inputs.load }}" == "true" ]]; then
+          if [[ -z "$ORIGINAL_OUTPUTS" ]]; then
+            # 3.1 If load is used and original outputs is empty, add type=docker
+            if [[ -n "$LOCAL_OUTPUTS" ]]; then
+              # Append type=docker with newline separator
+              LOCAL_OUTPUTS="${LOCAL_OUTPUTS}"$'\n'"type=docker"
+            else
+              LOCAL_OUTPUTS="type=docker"
+            fi
+          else
+            # 3.2 If load is used and original outputs is non-empty, validate it has type=docker
+            if ! echo "$ORIGINAL_OUTPUTS" | grep -q "type=docker"; then
+              echo "::error::Configuration error: 'load: true' requires 'outputs' to include 'type=docker'"
+              echo "::error::Either set 'load: false' or add 'type=docker' to your outputs"
+              exit 1
+            fi
+          fi
+        fi
+
+        # 4. Output only the outputs parameter for the underlying step
+        if [[ -n "$LOCAL_OUTPUTS" ]]; then
+          echo "📤 Outputs configuration:"
+          echo "$LOCAL_OUTPUTS" | sed 's/^/  /'
+
+          {
+            echo "outputs<<EOF"
+            echo "$LOCAL_OUTPUTS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+        else
+          echo "outputs=" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Build and push Docker image
       id: build
       uses: docker/build-push-action@v6
@@ -288,8 +348,7 @@ runs:
         build-args: ${{ inputs.build_args }}
         labels: ${{ steps.meta.outputs.labels }}
         tags: ${{ steps.final_tags.outputs.tags }}
-        push: ${{ inputs.push }}
-        load: ${{ inputs.load }}
+        outputs: ${{ steps.prepare_outputs.outputs.outputs }}
         cache-from: ${{ inputs.cache_from }}
         cache-to: ${{ inputs.cache_to }}
         no-cache: ${{ inputs.no_cache }}
