@@ -1,0 +1,21 @@
+# Test configuration for skyhook config resolution tests
+# All paths are relative to the repository root
+services:
+  - name: api
+    path: test/services/api
+    deploymentRepo: my-org/deployment
+    deploymentRepoPath: api
+    buildTool:
+      docker:
+        contextPath: test/services/api
+
+  - name: worker
+    path: test/services/worker
+    buildTool:
+      docker:
+        contextPath: test/services/worker
+        dockerfilePath: test/services/worker/docker/Dockerfile
+
+  - name: simple
+    path: test/services/simple
+    # No buildTool defined - should use path as context fallback

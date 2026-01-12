@@ -131,3 +131,138 @@ jobs:
       - name: Verify build args
         run: |
           docker run --rm test/args:test sh -c 'echo $TEST_ARG'
+
+  # Skyhook config resolution tests
+  test-skyhook-context-from-config:
+    runs-on: ubuntu-latest
+    name: Test context from skyhook config
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test build with service_name (api - contextPath only)
+        uses: ./
+        with:
+          tags: test/skyhook-api:test
+          service_name: api
+          # No context/dockerfile inputs - should use config values
+          push: false
+          load: true
+
+      - name: Verify image
+        run: |
+          docker images | grep -E "test/skyhook-api.*test"
+          # Verify it's the API service image
+          docker run --rm test/skyhook-api:test | grep -q "API service"
+
+  test-skyhook-context-and-dockerfile:
+    runs-on: ubuntu-latest
+    name: Test context + dockerfile from skyhook config
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test build with service_name (worker - contextPath + dockerfilePath)
+        uses: ./
+        with:
+          tags: test/skyhook-worker:test
+          service_name: worker
+          push: false
+          load: true
+
+      - name: Verify image uses custom Dockerfile
+        run: |
+          docker images | grep -E "test/skyhook-worker.*test"
+          # Verify it's the worker service image with custom dockerfile
+          docker run --rm test/skyhook-worker:test | grep -q "custom docker/Dockerfile"
+
+  test-skyhook-path-fallback:
+    runs-on: ubuntu-latest
+    name: Test path fallback when no buildTool.docker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test build with service_name (simple - no buildTool, uses path)
+        uses: ./
+        with:
+          tags: test/skyhook-simple:test
+          service_name: simple
+          push: false
+          load: true
+
+      - name: Verify image
+        run: |
+          docker images | grep -E "test/skyhook-simple.*test"
+          # Verify it's the simple service image
+          docker run --rm test/skyhook-simple:test | grep -q "path fallback"
+
+  test-skyhook-config-overrides-inputs:
+    runs-on: ubuntu-latest
+    name: Test config values override inputs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test that config overrides explicit context/dockerfile inputs
+        uses: ./
+        with:
+          tags: test/skyhook-override:test
+          service_name: worker
+          # These inputs should be overridden by config values
+          context: ./test
+          dockerfile: ./test/Dockerfile
+          push: false
+          load: true
+
+      - name: Verify config values were used (not inputs)
+        run: |
+          docker images | grep -E "test/skyhook-override.*test"
+          # If config was used, we should see the worker custom dockerfile message
+          # If inputs were used, we would see the basic test image message
+          docker run --rm test/skyhook-override:test | grep -q "custom docker/Dockerfile"
+
+  test-skyhook-service-not-found:
+    runs-on: ubuntu-latest
+    name: Test fallback when service not found
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test build with non-existent service_name (should fall back to inputs)
+        uses: ./
+        with:
+          tags: test/skyhook-fallback:test
+          service_name: nonexistent-service
+          context: ./test
+          dockerfile: ./test/Dockerfile
+          push: false
+          load: true
+
+      - name: Verify fallback to inputs worked
+        run: |
+          docker images | grep -E "test/skyhook-fallback.*test"
+          # Should be the basic test image since service wasn't found
+          docker run --rm test/skyhook-fallback:test | grep -q "Test Docker image"
+
+  test-skyhook-no-service-name:
+    runs-on: ubuntu-latest
+    name: Test backward compatibility (no service_name)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test build without service_name (should use inputs as before)
+        uses: ./
+        with:
+          tags: test/skyhook-compat:test
+          # No service_name - should use explicit inputs
+          context: ./test
+          dockerfile: ./test/Dockerfile
+          push: false
+          load: true
+
+      - name: Verify backward compatibility
+        run: |
+          docker images | grep -E "test/skyhook-compat.*test"
+          docker run --rm test/skyhook-compat:test | grep -q "Test Docker image"
