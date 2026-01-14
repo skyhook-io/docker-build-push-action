@@ -7,6 +7,11 @@ branding:
   color: 'purple'
 
 inputs:
+  # Skyhook config-based mode — auto-derive context/dockerfile from .skyhook/skyhook.yaml
+  service_name:
+    description: 'Service name to build, as defined in .skyhook/skyhook.yaml (services[].name)'
+    required: false
+
   # Manual mode — explicit list of image:tag pairs (newline-delimited). Mix registries as needed.
   tags:
     description: 'Newline-delimited list of image:tag'
@@ -189,6 +194,69 @@ runs:
         cache-binary: ${{ inputs.buildx_cache_binary || 'true' }}
         cleanup: ${{ inputs.buildx_cleanup || 'true' }}
 
+    - name: Resolve build config from .skyhook/skyhook.yaml
+      id: skyhook_config
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        SERVICE_NAME="${{ inputs.service_name }}"
+
+        # If no service_name provided, skip config resolution
+        if [[ -z "$SERVICE_NAME" ]]; then
+          echo "No service_name provided, skipping config resolution"
+          exit 0
+        fi
+
+        # Find the config file
+        CONFIG_FILE=""
+        if [[ -f ".skyhook/skyhook.yaml" ]]; then
+          CONFIG_FILE=".skyhook/skyhook.yaml"
+        elif [[ -f ".skyhook/skyhook.yml" ]]; then
+          CONFIG_FILE=".skyhook/skyhook.yml"
+        fi
+
+        if [[ -z "$CONFIG_FILE" ]]; then
+          echo "::warning::service_name '$SERVICE_NAME' provided but .skyhook/skyhook.yaml not found. Falling back to input parameters."
+          exit 0
+        fi
+
+        echo "Found config file: $CONFIG_FILE"
+
+        # Check if service exists
+        SERVICE_EXISTS=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .name" "$CONFIG_FILE")
+        if [[ -z "$SERVICE_EXISTS" ]]; then
+          echo "::warning::Service '$SERVICE_NAME' not found in $CONFIG_FILE. Falling back to input parameters."
+          exit 0
+        fi
+
+        echo "Found service '$SERVICE_NAME' in config"
+
+        # Extract build config using yq
+        # Context: buildTool.docker.contextPath > path > empty
+        CONTEXT_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.contextPath // .path // \"\"" "$CONFIG_FILE")
+        DOCKERFILE_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.dockerfilePath // \"\"" "$CONFIG_FILE")
+
+        # Write outputs
+        if [[ -n "$CONTEXT_PATH" ]]; then
+          echo "Using context from config: $CONTEXT_PATH"
+          echo "resolved_context=$CONTEXT_PATH" >> "$GITHUB_OUTPUT"
+
+          # If context is set but dockerfile is not, default to {context}/Dockerfile
+          if [[ -z "$DOCKERFILE_PATH" ]]; then
+            DOCKERFILE_PATH="${CONTEXT_PATH}/Dockerfile"
+            echo "Defaulting dockerfile to: $DOCKERFILE_PATH"
+          fi
+        fi
+
+        if [[ -n "$DOCKERFILE_PATH" ]]; then
+          echo "Using dockerfile from config: $DOCKERFILE_PATH"
+          echo "resolved_dockerfile=$DOCKERFILE_PATH" >> "$GITHUB_OUTPUT"
+        fi
+
+        echo "config_file=$CONFIG_FILE" >> "$GITHUB_OUTPUT"
+        echo "service_name=$SERVICE_NAME" >> "$GITHUB_OUTPUT"
+
     - name: Validate inputs
       shell: bash
       run: |
@@ -282,8 +350,8 @@ runs:
       id: build
       uses: docker/build-push-action@v6
       with:
-        context: ${{ inputs.context }}
-        file: ${{ inputs.dockerfile }}
+        context: ${{ steps.skyhook_config.outputs.resolved_context || inputs.context }}
+        file: ${{ steps.skyhook_config.outputs.resolved_dockerfile || inputs.dockerfile }}
         platforms: ${{ inputs.platforms }}
         build-args: ${{ inputs.build_args }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -333,8 +401,28 @@ runs:
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
           echo "### ⚙️ Build Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "- **Context:** \`${{ inputs.context }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Dockerfile:** \`${{ inputs.dockerfile }}\`" >> $GITHUB_STEP_SUMMARY
+
+          # Determine effective values and sources
+          EFFECTIVE_CONTEXT="${{ steps.skyhook_config.outputs.resolved_context || inputs.context }}"
+          EFFECTIVE_DOCKERFILE="${{ steps.skyhook_config.outputs.resolved_dockerfile || inputs.dockerfile }}"
+
+          if [[ -n "${{ steps.skyhook_config.outputs.config_file }}" ]]; then
+            echo "> 📄 Config source: \`${{ steps.skyhook_config.outputs.config_file }}\` (service: \`${{ steps.skyhook_config.outputs.service_name }}\`)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          CONTEXT_SOURCE=""
+          if [[ -n "${{ steps.skyhook_config.outputs.resolved_context }}" ]]; then
+            CONTEXT_SOURCE=" _(from config)_"
+          fi
+
+          DOCKERFILE_SOURCE=""
+          if [[ -n "${{ steps.skyhook_config.outputs.resolved_dockerfile }}" ]]; then
+            DOCKERFILE_SOURCE=" _(from config)_"
+          fi
+
+          echo "- **Context:** \`${EFFECTIVE_CONTEXT}\`${CONTEXT_SOURCE}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dockerfile:** \`${EFFECTIVE_DOCKERFILE}\`${DOCKERFILE_SOURCE}" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms:** \`${{ inputs.platforms }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Push:** \`${{ inputs.push }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Load:** \`${{ inputs.load }}\`" >> $GITHUB_STEP_SUMMARY
