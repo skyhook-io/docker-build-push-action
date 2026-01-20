@@ -213,10 +213,8 @@ runs:
 
         # Find the config file
         CONFIG_FILE=""
-        if [[ -f ".skyhook/skyhook.yaml" ]]; then
-          CONFIG_FILE=".skyhook/skyhook.yaml"
-        elif [[ -f ".skyhook/skyhook.yml" ]]; then
-          CONFIG_FILE=".skyhook/skyhook.yml"
+        if [[ -f "$REPO_ROOT/.skyhook/skyhook.yaml" ]]; then
+          CONFIG_FILE="$REPO_ROOT/.skyhook/skyhook.yaml"
         fi
 
         if [[ -z "$CONFIG_FILE" ]]; then
