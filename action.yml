@@ -200,7 +200,7 @@ runs:
       run: |
         set -euo pipefail
 
-        SERVICE_NAME="${{ inputs.service_name }}"
+        SERVICE_NAME="${{ inputs.service_name || env.SERVICE_NAME }}"
 
         # If no service_name provided, skip config resolution
         if [[ -z "$SERVICE_NAME" ]]; then
