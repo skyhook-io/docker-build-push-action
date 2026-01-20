@@ -216,9 +216,9 @@ runs:
         if [[ -f "$REPO_ROOT/.skyhook/skyhook.yaml" ]]; then
           CONFIG_FILE="$REPO_ROOT/.skyhook/skyhook.yaml"
         fi
-
+        ls
         if [[ -z "$CONFIG_FILE" ]]; then
-          echo "::warning::service_name '$SERVICE_NAME' provided but .skyhook/skyhook.yaml not found. Falling back to input parameters."
+          echo "::warning::service_name '$SERVICE_NAME' provided but $REPO_ROOT/.skyhook/skyhook.yaml not found. Falling back to input parameters."
           exit 0
         fi
 
