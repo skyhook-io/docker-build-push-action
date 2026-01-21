@@ -235,8 +235,8 @@ runs:
         echo "Found service '$SERVICE_NAME' in config"
 
         # Extract build config using yq
-        # Context: buildTool.docker.contextPath > path > empty
-        CONTEXT_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.contextPath // .path // \"\"" "$CONFIG_FILE")
+        # Context: only use buildTool.docker.contextPath if explicitly set, otherwise empty (defaults to repo root)
+        CONTEXT_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.contextPath // \"\"" "$CONFIG_FILE")
         DOCKERFILE_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.dockerfilePath // \"\"" "$CONFIG_FILE")
 
         # Normalize outputs to repo root (this step runs in working-directory: code)
