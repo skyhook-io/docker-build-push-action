@@ -239,21 +239,26 @@ runs:
         CONTEXT_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.contextPath // .path // \"\"" "$CONFIG_FILE")
         DOCKERFILE_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.dockerfilePath // \"\"" "$CONFIG_FILE")
 
+        # Normalize outputs to repo root (this step runs in working-directory: code)
+        REPO_PREFIX="code"
+
         # Write outputs
         if [[ -n "$CONTEXT_PATH" ]]; then
-          echo "Using context from config: $CONTEXT_PATH"
-          echo "resolved_context=$CONTEXT_PATH" >> "$GITHUB_OUTPUT"
+          FULL_CONTEXT_PATH="$REPO_PREFIX/$CONTEXT_PATH"
+          echo "Using context from config: $FULL_CONTEXT_PATH"
+          echo "resolved_context=$FULL_CONTEXT_PATH" >> "$GITHUB_OUTPUT"
 
           # If context is set but dockerfile is not, default to {context}/Dockerfile
           if [[ -z "$DOCKERFILE_PATH" ]]; then
             DOCKERFILE_PATH="${CONTEXT_PATH}/Dockerfile"
-            echo "Defaulting dockerfile to: $DOCKERFILE_PATH"
+            echo "Defaulting dockerfile to: $REPO_PREFIX/$DOCKERFILE_PATH"
           fi
         fi
 
         if [[ -n "$DOCKERFILE_PATH" ]]; then
-          echo "Using dockerfile from config: $DOCKERFILE_PATH"
-          echo "resolved_dockerfile=$DOCKERFILE_PATH" >> "$GITHUB_OUTPUT"
+          FULL_DOCKERFILE_PATH="$REPO_PREFIX/$DOCKERFILE_PATH"
+          echo "Using dockerfile from config: $FULL_DOCKERFILE_PATH"
+          echo "resolved_dockerfile=$FULL_DOCKERFILE_PATH" >> "$GITHUB_OUTPUT"
         fi
 
         echo "config_file=$CONFIG_FILE" >> "$GITHUB_OUTPUT"
