@@ -242,18 +242,20 @@ runs:
         # Normalize outputs to repo root (this step runs in working-directory: code)
         REPO_PREFIX="code"
 
-        # Write outputs
+        # Context: if contextPath is set use code/{contextPath}, else use code
         if [[ -n "$CONTEXT_PATH" ]]; then
-          FULL_CONTEXT_PATH="$REPO_PREFIX/$CONTEXT_PATH"
-          echo "Using context from config: $FULL_CONTEXT_PATH"
-          echo "resolved_context=$FULL_CONTEXT_PATH" >> "$GITHUB_OUTPUT"
+          RESOLVED_CONTEXT="$REPO_PREFIX/$CONTEXT_PATH"
 
-          # If context is set but dockerfile is not, default to {context}/Dockerfile
+          # If dockerfile is not set, default to {context}/Dockerfile
           if [[ -z "$DOCKERFILE_PATH" ]]; then
             DOCKERFILE_PATH="${CONTEXT_PATH}/Dockerfile"
             echo "Defaulting dockerfile to: $REPO_PREFIX/$DOCKERFILE_PATH"
           fi
+        else
+          RESOLVED_CONTEXT="$REPO_PREFIX"
         fi
+        echo "Using context: $RESOLVED_CONTEXT"
+        echo "resolved_context=$RESOLVED_CONTEXT" >> "$GITHUB_OUTPUT"
 
         if [[ -n "$DOCKERFILE_PATH" ]]; then
           FULL_DOCKERFILE_PATH="$REPO_PREFIX/$DOCKERFILE_PATH"
