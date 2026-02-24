@@ -209,6 +209,7 @@ runs:
         # If no service_name provided, skip config resolution
         if [[ -z "$SERVICE_NAME" ]]; then
           echo "No service_name provided, skipping config resolution"
+          echo "resolved_context=code" >> "$GITHUB_OUTPUT"
           exit 0
         fi
         
@@ -220,6 +221,7 @@ runs:
 
         if [[ -z "$CONFIG_FILE" ]]; then
           echo "::warning::service_name '$SERVICE_NAME' provided but .skyhook/skyhook.yaml not found. Falling back to input parameters."
+          echo "resolved_context=code" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
@@ -229,6 +231,7 @@ runs:
         SERVICE_EXISTS=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .name" "$CONFIG_FILE")
         if [[ -z "$SERVICE_EXISTS" ]]; then
           echo "::warning::Service '$SERVICE_NAME' not found in $CONFIG_FILE. Falling back to input parameters."
+          echo "resolved_context=code" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
