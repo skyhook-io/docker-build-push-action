@@ -8,8 +8,8 @@
 #   ─────┼───────────────────────────┼──────────────────────────────────
 #    1   │ per-service buildContext  │ per-service dockerfilePath
 #    2   │ root        buildContext  │ root        dockerfilePath
-#    3   │ code                      │ code/<SERVICE_DIR>/Dockerfile
-#    4   │ code                      │ code/Dockerfile   (no SERVICE_DIR)
+#    3   │ code                      │ code/<service.path>/Dockerfile
+#    4   │ code                      │ code/Dockerfile   (no service.path)
 #
 # YAML values are repo-root-relative ("absolute from repo root"); the script
 # only ever prepends `$REPO_PREFIX` (the calling workflow's checkout dir).
@@ -18,13 +18,15 @@
 # `contextPath` for back-compat (with a deprecation warning). `dockerfilePath`
 # has no historical alias.
 #
+# The "SERVICE_DIR" used in step 3 of the dockerfile chain is read from
+# `services[name=$SERVICE_NAME].path` in skyhook.yaml — the action does not
+# need it as a separate input. If the service has no `path`, step 3 is
+# skipped and step 4 (`code/Dockerfile`) wins.
+#
 # Inputs (env vars):
 #   SERVICE_NAME    Service name to look up. If empty, the script is a no-op
 #                   (manual mode — caller's `inputs.context` / `inputs.dockerfile`
 #                   are used as-is).
-#   SERVICE_DIR     Service directory inside the repo (typically the same as
-#                   skyhook.yaml's `services[].path`). Optional; only affects
-#                   the dockerfile fallback (step 3 above).
 #   REPO_PREFIX     Path the consumer expects values to live under (default: "code").
 #   SKYHOOK_FILE    Optional override for the config file path
 #                   (default: "$PWD/.skyhook/skyhook.yaml").
@@ -38,7 +40,6 @@
 set -euo pipefail
 
 : "${SERVICE_NAME:=}"
-: "${SERVICE_DIR:=}"
 : "${REPO_PREFIX:=code}"
 : "${SKYHOOK_FILE:=.skyhook/skyhook.yaml}"
 
@@ -82,6 +83,7 @@ ROOT_DFP=""
 SVC_CTX=""
 SVC_CTX_LEGACY=""
 SVC_DFP=""
+SVC_PATH=""
 CONFIG_PRESENT=0
 
 if [[ -f "$SKYHOOK_FILE" ]]; then
@@ -99,11 +101,12 @@ if [[ -f "$SKYHOOK_FILE" ]]; then
     SVC_CTX=$(yq_get '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | (.[0].buildTool.docker.buildContext // "")' "$SKYHOOK_FILE")
     SVC_CTX_LEGACY=$(yq_get '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | (.[0].buildTool.docker.contextPath // "")' "$SKYHOOK_FILE")
     SVC_DFP=$(yq_get '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | (.[0].buildTool.docker.dockerfilePath // "")' "$SKYHOOK_FILE")
+    SVC_PATH=$(yq_get '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | (.[0].path // "")' "$SKYHOOK_FILE")
   else
     log "::warning::Service '$SERVICE_NAME' not found in $SKYHOOK_FILE; only root-level overrides (if any) will apply."
   fi
 else
-  log "::warning::service_name '$SERVICE_NAME' was provided but $SKYHOOK_FILE was not found; using SERVICE_DIR / code defaults."
+  log "::warning::service_name '$SERVICE_NAME' was provided but $SKYHOOK_FILE was not found; using code defaults."
 fi
 
 # One-shot deprecation warning if anyone is still on `contextPath` AND the
@@ -126,12 +129,13 @@ log "Using context: $RESOLVED_CONTEXT"
 emit "resolved_context=$RESOLVED_CONTEXT"
 
 # ── Dockerfile chain ────────────────────────────────────────────────────────
-# per-service > root > <SERVICE_DIR>/Dockerfile > Dockerfile.
+# per-service > root > <service.path>/Dockerfile > Dockerfile.
+# `service.path` is read from skyhook.yaml — no separate input needed.
 DFP="${SVC_DFP:-$ROOT_DFP}"
 if [[ -n "$DFP" ]]; then
   RESOLVED_DOCKERFILE="$REPO_PREFIX/$DFP"
-elif [[ -n "$SERVICE_DIR" ]]; then
-  RESOLVED_DOCKERFILE="$REPO_PREFIX/$SERVICE_DIR/Dockerfile"
+elif [[ -n "$SVC_PATH" ]]; then
+  RESOLVED_DOCKERFILE="$REPO_PREFIX/$SVC_PATH/Dockerfile"
 else
   RESOLVED_DOCKERFILE="$REPO_PREFIX/Dockerfile"
 fi

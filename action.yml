@@ -11,13 +11,6 @@ inputs:
   service_name:
     description: 'Service name to build, as defined in .skyhook/skyhook.yaml (services[].name)'
     required: false
-  service_dir:
-    description: |
-      Service directory inside the repo (e.g. "apps/web"). Used as the SERVICE_DIR
-      fallback when no dockerfilePath override is set in skyhook.yaml: the action
-      then defaults the Dockerfile to `code/<service_dir>/Dockerfile`. Has no
-      effect on the build context (context falls back to `code`, not `code/<dir>`).
-    required: false
 
   # Manual mode — explicit list of image:tag pairs (newline-delimited). Mix registries as needed.
   tags:
@@ -207,7 +200,6 @@ runs:
       working-directory: code
       env:
         SERVICE_NAME: ${{ inputs.service_name }}
-        SERVICE_DIR: ${{ inputs.service_dir }}
         # Path prefix the consumer expects the resolved values to live under.
         # This step runs inside `code/` (the calling workflow's checkout dir),
         # so any path read from skyhook.yaml is repo-root-relative and gets

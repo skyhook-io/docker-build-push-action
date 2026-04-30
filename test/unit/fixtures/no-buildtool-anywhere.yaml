@@ -1,3 +1,7 @@
 services:
-  - name: bare
+  # Service has `path` set — used as the SERVICE_DIR fallback for dockerfile.
+  - name: bare-with-path
     path: apps/bare
+
+  # Service has no `path` — dockerfile falls all the way through to code/Dockerfile.
+  - name: bare-no-path
