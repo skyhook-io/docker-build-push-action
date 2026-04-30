@@ -31,13 +31,13 @@ fi
 
 pass=0; fail=0
 
-# run_case <case_name> <fixture> <SERVICE_NAME> <expected_outputs_grep_regex>
+# run_case <name> <fixture> <SERVICE_NAME> <SERVICE_DIR> <expected_outputs>
 #
-# expected_outputs_grep_regex is a `;`-separated list of grep-E patterns that
-# must each match a line in $GITHUB_OUTPUT. Prefix a pattern with `!` to assert
-# it MUST NOT match.
+# expected_outputs is a `;`-separated list of grep-E patterns that must each
+# match a line in $GITHUB_OUTPUT. Prefix a pattern with `!` to assert it MUST
+# NOT match.
 run_case() {
-  local name=$1 fixture=$2 svc=$3 expects=$4
+  local name=$1 fixture=$2 svc=$3 svc_dir=$4 expects=$5
   local case_dir out_file
   case_dir="$TMPROOT/$name"
   mkdir -p "$case_dir"
@@ -45,6 +45,7 @@ run_case() {
   : > "$out_file"
 
   SERVICE_NAME="$svc" \
+  SERVICE_DIR="$svc_dir" \
   REPO_PREFIX="code" \
   SKYHOOK_FILE="$FIXTURES/$fixture" \
   GITHUB_OUTPUT="$out_file" \
@@ -83,45 +84,61 @@ run_case() {
 
 echo "running unit tests against $RESOLVER"
 
-# 1. Canonical buildContext + dockerfilePath are emitted with code/ prefix.
+# ── Per-service overrides ──────────────────────────────────────────────────
+
+# 1. Canonical buildContext + dockerfilePath, both per-service.
 run_case "canonical-fields-emitted" \
-  "canonical-only.yaml" "web" \
+  "canonical-only.yaml" "web" "" \
   "^resolved_context=code/apps/web/src$ ; ^resolved_dockerfile=code/apps/web/docker/Dockerfile$"
 
-# 2. Legacy contextPath is honored (back-compat path).
+# 2. Legacy contextPath honored (back-compat path). When dockerfilePath is
+#    unset, dockerfile falls all the way through to `code/Dockerfile` because
+#    no SERVICE_DIR was passed (NOT to `code/<context>/Dockerfile`; context
+#    and dockerfile chains are independent).
 run_case "legacy-contextpath-honored" \
-  "legacy-contextpath.yaml" "legacy" \
-  "^resolved_context=code/apps/legacy$ ; ^resolved_dockerfile=code/apps/legacy/Dockerfile$"
+  "legacy-contextpath.yaml" "legacy" "" \
+  "^resolved_context=code/apps/legacy$ ; ^resolved_dockerfile=code/Dockerfile$"
 
 # 3. Per-service value overrides root.
 run_case "service-overrides-root" \
-  "root-and-services.yaml" "web" \
+  "root-and-services.yaml" "web" "" \
   "^resolved_context=code/apps/web/src$ ; !^resolved_context=code/shared$"
 
 # 4. Service with no per-service buildTool inherits root buildContext / dockerfilePath.
 run_case "service-inherits-root" \
-  "root-and-services.yaml" "api" \
+  "root-and-services.yaml" "api" "" \
   "^resolved_context=code/shared$ ; ^resolved_dockerfile=code/shared/Dockerfile$"
 
-# 5. No buildTool anywhere → no resolved_* outputs (consumer's || falls through to inputs).
-run_case "no-override-anywhere" \
-  "no-buildtool-anywhere.yaml" "bare" \
-  "!^resolved_context= ; !^resolved_dockerfile="
+# ── Fallback chain (no YAML override) ──────────────────────────────────────
 
-# 6. `./` is normalized to "no override" — only dockerfilePath is emitted.
+# 5. No buildTool anywhere, no SERVICE_DIR → context=code, dockerfile=code/Dockerfile.
+run_case "no-override-no-service-dir" \
+  "no-buildtool-anywhere.yaml" "bare" "" \
+  "^resolved_context=code$ ; ^resolved_dockerfile=code/Dockerfile$"
+
+# 6. No buildTool anywhere, SERVICE_DIR set → context=code, dockerfile=code/<dir>/Dockerfile.
+run_case "no-override-with-service-dir" \
+  "no-buildtool-anywhere.yaml" "bare" "apps/bare" \
+  "^resolved_context=code$ ; ^resolved_dockerfile=code/apps/bare/Dockerfile$"
+
+# 7. `./` is normalized to "no override" — falls through to defaults.
+#    (dockerfilePath in the fixture is set, so dockerfile uses that.)
 run_case "dotslash-context-is-normalized" \
-  "dotslash-context.yaml" "monorepo-root" \
-  "!^resolved_context= ; ^resolved_dockerfile=code/apps/foo/Dockerfile$"
+  "dotslash-context.yaml" "monorepo-root" "apps/foo" \
+  "^resolved_context=code$ ; ^resolved_dockerfile=code/apps/foo/Dockerfile$"
 
-# 7. Empty service_name → no-op (no outputs at all).
+# ── No-op edge cases ───────────────────────────────────────────────────────
+
+# 8. Empty service_name → manual mode, no outputs at all.
 run_case "no-service-name-is-noop" \
-  "canonical-only.yaml" "" \
+  "canonical-only.yaml" "" "" \
   "!^resolved_context= ; !^resolved_dockerfile= ; !^config_file= ; !^service_name="
 
-# 8. Service not found → no-op (resolver doesn't second-guess inputs).
-run_case "unknown-service-is-noop" \
-  "canonical-only.yaml" "does-not-exist" \
-  "!^resolved_context= ; !^resolved_dockerfile= ; !^config_file= ; !^service_name="
+# 9. Service not found in YAML → root-level overrides (none in this fixture)
+#    + SERVICE_DIR-based dockerfile fallback. Diagnostic warning emitted.
+run_case "unknown-service-uses-defaults" \
+  "canonical-only.yaml" "does-not-exist" "apps/missing" \
+  "^resolved_context=code$ ; ^resolved_dockerfile=code/apps/missing/Dockerfile$ ; ^service_name=does-not-exist$"
 
 echo
 if [[ "$fail" -eq 0 ]]; then
