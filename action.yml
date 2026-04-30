@@ -167,19 +167,19 @@ runs:
       LOCKED_REQUESTED_VERSION: ${{ inputs.buildx_version }}
   - name: Set up QEMU
     if: ${{ contains(inputs.platforms, ',') || (inputs.platforms != '' && inputs.platforms != 'linux/amd64') }}
-    uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
+    uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
     with:
       image: tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
   - name: Set up Docker Buildx
     if: ${{ !inputs.buildx_version && !inputs.buildx_name && !inputs.buildx_driver && !inputs.buildx_driver_opts && !inputs.buildx_buildkitd_flags && !inputs.buildx_buildkitd_config && !inputs.buildx_buildkitd_config_inline && !inputs.buildx_install && !inputs.buildx_use && !inputs.buildx_endpoint && !inputs.buildx_platforms && !inputs.buildx_append && !inputs.buildx_keep_state && !inputs.buildx_cache_binary && !inputs.buildx_cleanup }}
-    uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+    uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
     with:
       driver-opts: image=moby/buildkit@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
       driver: docker-container
       keep-state: 'false'
   - name: Set up Docker Buildx (custom)
     if: ${{ inputs.buildx_version || inputs.buildx_name || inputs.buildx_driver || inputs.buildx_driver_opts || inputs.buildx_buildkitd_flags || inputs.buildx_buildkitd_config || inputs.buildx_buildkitd_config_inline || inputs.buildx_install || inputs.buildx_use || inputs.buildx_endpoint || inputs.buildx_platforms || inputs.buildx_append || inputs.buildx_keep_state || inputs.buildx_cache_binary || inputs.buildx_cleanup }}
-    uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+    uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
     with:
       name: ${{ inputs.buildx_name }}
       driver: docker-container
@@ -187,6 +187,7 @@ runs:
       buildkitd-flags: ${{ inputs.buildx_buildkitd_flags }}
       buildkitd-config: ${{ inputs.buildx_buildkitd_config }}
       buildkitd-config-inline: ${{ inputs.buildx_buildkitd_config_inline }}
+      install: ${{ inputs.buildx_install || 'false' }}
       use: ${{ inputs.buildx_use || 'true' }}
       endpoint: ${{ inputs.buildx_endpoint }}
       platforms: ${{ inputs.buildx_platforms }}
@@ -194,10 +195,6 @@ runs:
       keep-state: 'false'
       cache-binary: ${{ inputs.buildx_cache_binary || 'true' }}
       cleanup: ${{ inputs.buildx_cleanup || 'true' }}
-  - name: Alias docker build to buildx
-    if: ${{ inputs.buildx_install == 'true' }}
-    shell: bash
-    run: docker buildx install
   - name: Resolve build config from .skyhook/skyhook.yaml
     id: skyhook_config
     if: ${{ inputs.service_name != '' && (inputs.context == '' || inputs.dockerfile == '') }}
@@ -212,7 +209,7 @@ runs:
       \ entries\n  has_tag_after_last_slash() { local s=\"$1\"; local seg=${s##*/}; [[ \"$seg\" == *:* ]]; }\n  \n  while IFS= read -r repo; do\n    [[ -z \"$repo\" ]] && continue\n    if has_tag_after_last_slash \"$repo\"; then\n      echo \"::error::'image' entries must NOT include a tag: $repo\"\n      exit 1\n    fi\n    if [[ \"$repo\" =~ @sha256:[0-9a-fA-F]{64}$ ]]; then\n      echo \"::error::'image' entries must NOT include a digest: $repo\"\n      exit 1\n    fi\n  done <<< \"$(printf \"%s\\n\" \"${{ inputs.image }}\" | to_lines | awk 'NF')\"\nelif [[ -z \"${{ inputs.tags }}\" ]]; then\n  echo \"::error::Provide either 'image'+'base_tag' or 'tags'.\"\n  exit 1\nfi\n"
   - name: Docker meta
     id: meta
-    uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
+    uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
     with:
       images: ${{ inputs.image }}
       tags: '${{ (inputs.image != '''' && inputs.base_tag != '''') && format(''type=raw,value={0}'', inputs.base_tag) || '''' }}
@@ -234,7 +231,7 @@ runs:
     run: "set -euo pipefail\nto_lines() { tr -d '\\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' ; }\n\nif [[ -n \"${{ inputs.tags }}\" ]]; then\n  TAGS=\"$(printf \"%s\\n\" \"${{ inputs.tags }}\" | to_lines)\"\nelse\n  TAGS=\"${{ steps.meta.outputs.tags }}\"\nfi\n\n# Stable de-dupe, preserve order\nTAGS=\"$(printf \"%s\\n\" \"$TAGS\" | awk 'NF && !a[$0]++')\"\n\nif [[ -z \"$TAGS\" ]]; then\n  echo \"::error::No tags were produced. Provide 'tags' or 'image'+'base_tag'.\"\n  exit 1\nfi\n\n{\n  echo \"tags<<EOF\"\n  printf \"%s\\n\" \"$TAGS\"\n  echo \"EOF\"\n} >> \"$GITHUB_OUTPUT\"\n\necho \"\U0001F4DD Tags to build:\"\nprintf \"%s\\n\" \"$TAGS\" | sed 's/^/  - /'\n"
   - name: Build and push Docker image
     id: build
-    uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+    uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
     with:
       context: ${{ inputs.context || steps.skyhook_config.outputs.resolved_context || '.' }}
       file: ${{ inputs.dockerfile || steps.skyhook_config.outputs.resolved_dockerfile || 'Dockerfile' }}

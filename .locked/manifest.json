@@ -1,17 +1,17 @@
 {
   "dependencies": {
-    "docker/build-push-action@v7": "docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc",
-    "docker/metadata-action@v6": "docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302",
-    "docker/setup-buildx-action@v4": "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
-    "docker/setup-qemu-action@v4": "docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1"
+    "docker/build-push-action@v6": "docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8",
+    "docker/metadata-action@v5": "docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051",
+    "docker/setup-buildx-action@v3": "docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f",
+    "docker/setup-qemu-action@v3": "docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130"
   },
   "npm": null,
   "runner_tools": "Existing runner binaries and consumer build inputs are not snapshotted.",
-  "snapshot": "e25174efc8a4dbc6d73b",
+  "snapshot": "9e96d9d1d62f468b7aaf",
   "source": {
     "ref": "v1",
     "repository": "skyhook-io/docker-build-push-action",
-    "sha": "526d49ec0ce798ebca2a01131f1686b202134316"
+    "sha": "1fdb7baca4fdbe7a10dc4f2164950798df1f83c2"
   },
   "tools": {
     "buildx": {
