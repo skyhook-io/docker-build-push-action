@@ -1,0 +1,6 @@
+services:
+  - name: legacy
+    path: apps/legacy
+    buildTool:
+      docker:
+        contextPath: apps/legacy

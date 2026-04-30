@@ -1,12 +1,35 @@
-# Test configuration for skyhook config resolution tests
-# All paths are relative to the repository root
+# Test configuration for skyhook config resolution tests.
+# All paths are repo-root-relative (canonical schema, see
+# koala-backend/internal/conf/skyhook.go::SkyhookDockerBuild).
+#
+# Exercises every branch of the resolver:
+#   - canonical per-service `buildContext` (web)
+#   - legacy per-service `contextPath` (api, worker)        — back-compat path
+#   - root-level `buildContext` inherited by service (inherits-root)
+#   - service with no buildTool anywhere (simple)           — defers to inputs
+
+buildTool:
+  docker:
+    # Root-level default. Services that omit buildTool entirely should
+    # inherit this. Per-service overrides take precedence.
+    buildContext: test/services/shared
+
 services:
+  - name: web
+    path: test/services/web
+    buildTool:
+      docker:
+        # Canonical field name. Should win over the root buildContext above.
+        buildContext: test/services/web
+
   - name: api
     path: test/services/api
     deploymentRepo: my-org/deployment
     deploymentRepoPath: api
     buildTool:
       docker:
+        # Legacy field name. Kept here so the resolver's deprecation /
+        # back-compat path stays exercised in tests.
         contextPath: test/services/api
 
   - name: worker
@@ -16,6 +39,11 @@ services:
         contextPath: test/services/worker
         dockerfilePath: test/services/worker/docker/Dockerfile
 
+  - name: inherits-root
+    path: test/services/inherits-root
+    # No per-service buildTool — should fall back to the root buildContext.
+
   - name: simple
     path: test/services/simple
-    # No buildTool defined - should use path as context fallback
+    # No per-service buildTool — same as inherits-root above; documents that
+    # the legacy fixture name still works without changes after the rewrite.

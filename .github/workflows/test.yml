@@ -8,6 +8,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Unit tests for the skyhook config resolver. These run in seconds and don't
+  # need Docker, so they're the first line of defence against regressions in
+  # field-name handling, root-vs-service precedence, and the override semantics
+  # of `resolved_context` / `resolved_dockerfile`. ubuntu-latest ships yq v4.
+  test-skyhook-resolver-unit:
+    runs-on: ubuntu-latest
+    name: Unit tests — skyhook config resolver
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run resolver unit tests
+        run: bash test/unit/test_resolve_skyhook_config.sh
+
   test-basic-build:
     runs-on: ubuntu-latest
     name: Test basic Docker build

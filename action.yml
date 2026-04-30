@@ -198,76 +198,16 @@ runs:
       id: skyhook_config
       shell: bash
       working-directory: code
-      run: |
-        set -euo pipefail
-
-        # Use the input if it exists;
-        if [[ -n "${{ inputs.service_name }}" ]]; then
-          SERVICE_NAME="${{ inputs.service_name }}"
-        fi
-
-        # If no service_name provided, skip config resolution
-        if [[ -z "$SERVICE_NAME" ]]; then
-          echo "No service_name provided, skipping config resolution"
-          echo "resolved_context=code" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-        
-        # Find the config file
-        CONFIG_FILE=""
-        if [[ -f ".skyhook/skyhook.yaml" ]]; then
-          CONFIG_FILE=".skyhook/skyhook.yaml"
-        fi
-
-        if [[ -z "$CONFIG_FILE" ]]; then
-          echo "::warning::service_name '$SERVICE_NAME' provided but .skyhook/skyhook.yaml not found. Falling back to input parameters."
-          echo "resolved_context=code" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-
-        echo "Found config file: $CONFIG_FILE"
-
-        # Check if service exists
-        SERVICE_EXISTS=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .name" "$CONFIG_FILE")
-        if [[ -z "$SERVICE_EXISTS" ]]; then
-          echo "::warning::Service '$SERVICE_NAME' not found in $CONFIG_FILE. Falling back to input parameters."
-          echo "resolved_context=code" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-
-        echo "Found service '$SERVICE_NAME' in config"
-
-        # Extract build config using yq
-        # Context: only use buildTool.docker.contextPath if explicitly set, otherwise empty (defaults to repo root)
-        CONTEXT_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.contextPath // \"\"" "$CONFIG_FILE")
-        DOCKERFILE_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.dockerfilePath // \"\"" "$CONFIG_FILE")
-
-        # Normalize outputs to repo root (this step runs in working-directory: code)
-        REPO_PREFIX="code"
-
-        # Context: if contextPath is set use code/{contextPath}, else use code
-        if [[ -n "$CONTEXT_PATH" ]]; then
-          RESOLVED_CONTEXT="$REPO_PREFIX/$CONTEXT_PATH"
-
-          # If dockerfile is not set, default to {context}/Dockerfile
-          if [[ -z "$DOCKERFILE_PATH" ]]; then
-            DOCKERFILE_PATH="${CONTEXT_PATH}/Dockerfile"
-            echo "Defaulting dockerfile to: $REPO_PREFIX/$DOCKERFILE_PATH"
-          fi
-        else
-          RESOLVED_CONTEXT="$REPO_PREFIX"
-        fi
-        echo "Using context: $RESOLVED_CONTEXT"
-        echo "resolved_context=$RESOLVED_CONTEXT" >> "$GITHUB_OUTPUT"
-
-        if [[ -n "$DOCKERFILE_PATH" ]]; then
-          FULL_DOCKERFILE_PATH="$REPO_PREFIX/$DOCKERFILE_PATH"
-          echo "Using dockerfile from config: $FULL_DOCKERFILE_PATH"
-          echo "resolved_dockerfile=$FULL_DOCKERFILE_PATH" >> "$GITHUB_OUTPUT"
-        fi
-
-        echo "config_file=$CONFIG_FILE" >> "$GITHUB_OUTPUT"
-        echo "service_name=$SERVICE_NAME" >> "$GITHUB_OUTPUT"
+      env:
+        SERVICE_NAME: ${{ inputs.service_name }}
+        # Path prefix the consumer expects the resolved values to live under.
+        # This step runs inside `code/` (the calling workflow's checkout dir),
+        # so any path read from skyhook.yaml is repo-root-relative and gets
+        # `code/` prepended before being emitted as an output.
+        REPO_PREFIX: code
+      # Resolver lives in scripts/ so it can be unit-tested independently of
+      # GitHub Actions (see test/unit/test_resolve_skyhook_config.sh).
+      run: bash "$GITHUB_ACTION_PATH/scripts/resolve_skyhook_config.sh"
 
     - name: Validate inputs
       shell: bash

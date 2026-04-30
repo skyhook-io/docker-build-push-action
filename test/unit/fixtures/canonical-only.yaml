@@ -1,0 +1,7 @@
+services:
+  - name: web
+    path: apps/web
+    buildTool:
+      docker:
+        buildContext: apps/web/src
+        dockerfilePath: apps/web/docker/Dockerfile

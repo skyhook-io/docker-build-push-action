@@ -1,0 +1,10 @@
+services:
+  - name: monorepo-root
+    path: apps/foo
+    buildTool:
+      docker:
+        # `./` and `.` are normalized to "no override" by the resolver — same as
+        # koala-backend's SkyhookConfig.ResolveBuildContext and the workflow-side
+        # resolver in build_image.yml. Documented limitation.
+        buildContext: ./
+        dockerfilePath: apps/foo/Dockerfile

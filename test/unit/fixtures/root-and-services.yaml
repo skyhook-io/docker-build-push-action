@@ -1,0 +1,15 @@
+buildTool:
+  docker:
+    buildContext: shared
+    dockerfilePath: shared/Dockerfile
+
+services:
+  - name: web
+    path: apps/web
+    buildTool:
+      docker:
+        buildContext: apps/web/src
+
+  - name: api
+    path: apps/api
+    # No per-service buildTool — should inherit the root values.
