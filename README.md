@@ -103,6 +103,11 @@ The simplest way to use this action - just provide the image repository and prim
 
 *Must provide either (`image` + `base_tag`) OR `tags`
 
+#### Skyhook Config (auto-resolve context + Dockerfile)
+| Input | Description | Required | Default |
+|-------|-------------|----------|---------|
+| `service_name` | Name of a service defined in `.skyhook/skyhook.yaml`. When set, `context` and `dockerfile` are resolved from that file (see [Skyhook Config](#skyhook-config) below). | No | - |
+
 ### Build Configuration
 
 | Input | Description | Required | Default |
@@ -169,6 +174,71 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
 | `metadata` | Build result metadata |
 | `tags_list` | Newline-delimited list of image:tag combinations |
 
+## Skyhook Config
+
+When `service_name` is set, the action reads `.skyhook/skyhook.yaml` from the **calling workflow's checkout directory** (which must live under `code/` — i.e. `actions/checkout` is expected to have placed the source under `./code`) and uses it to derive the build context and Dockerfile. The explicit `context` / `dockerfile` inputs are ignored in this mode.
+
+### Schema
+
+The action looks at `buildTool.docker.{buildContext,dockerfilePath}` at two levels — root (applies to every service) and per-service (overrides the root):
+
+```yaml
+# .skyhook/skyhook.yaml
+buildTool:
+  docker:
+    buildContext: shared            # root-level default for every service
+    dockerfilePath: shared/Dockerfile
+
+services:
+  - name: api
+    path: apps/api                  # used as a fallback for Dockerfile only
+
+  - name: worker
+    path: apps/worker
+    buildTool:
+      docker:
+        buildContext: apps/worker/src         # per-service override
+        dockerfilePath: apps/worker/docker/Dockerfile
+```
+
+All paths are repo-root-relative. `.` and `./` are normalised to "no override" — use them when you mean "fall through to the next step in the chain".
+
+### Resolution chain
+
+|  step | context                       | dockerfile                                    |
+|-------|-------------------------------|-----------------------------------------------|
+|   1   | per-service `buildContext`    | per-service `dockerfilePath`                  |
+|   2   | root `buildContext`           | root `dockerfilePath`                         |
+|   3   | _(no further fallback)_       | `<services[].path>/Dockerfile`                |
+|   4   | `code` (entire checkout)      | `code/Dockerfile`                             |
+
+The two chains are independent: setting only `buildContext` does **not** make `dockerfile` resolve relative to it — `dockerfile` runs through its own chain.
+
+### Override semantics (important)
+
+Once `service_name` is set, the resolved values **always take precedence** over the action's own `context` / `dockerfile` inputs — even when no override is found in YAML and the chain falls through to `code` / `code/Dockerfile`. This is intentional so behaviour is predictable across the matrix of "service exists with overrides", "service exists without overrides", "service not found", and "no `.skyhook/skyhook.yaml` at all".
+
+If you want the calling workflow's `context` / `dockerfile` inputs to be honoured, **don't set `service_name`** (manual mode).
+
+### Deprecated field: `contextPath`
+
+`buildTool.docker.contextPath` is the legacy alias for `buildContext`. It is still honoured for backwards compatibility, but the action emits a one-shot warning and you should rename it. `dockerfilePath` has no historical alias.
+
+### Example
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    path: code      # required: action expects sources under ./code
+
+- uses: skyhook-io/docker-build-push-action@v1
+  with:
+    image: ghcr.io/${{ github.repository }}
+    base_tag: v1.2.3
+    service_name: worker          # everything else (context, dockerfile)
+                                  # comes from .skyhook/skyhook.yaml
+```
+
 ## Examples
 
 ### Using Automatic Tag Generation
@@ -232,6 +302,31 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
     platforms: linux/amd64,linux/arm64,linux/arm/v7
     push: true
 ```
+
+### Skyhook Config Mode
+
+```yaml
+# .skyhook/skyhook.yaml in your repo:
+#   services:
+#     - name: api
+#       path: apps/api
+#       buildTool:
+#         docker:
+#           buildContext: apps/api
+#           dockerfilePath: apps/api/Dockerfile
+
+- uses: actions/checkout@v4
+  with:
+    path: code
+
+- uses: skyhook-io/docker-build-push-action@v1
+  with:
+    image: ghcr.io/${{ github.repository }}
+    base_tag: v1.2.3
+    service_name: api             # context + dockerfile come from .skyhook/skyhook.yaml
+```
+
+See [Skyhook Config](#skyhook-config) for the full schema, resolution chain, and override semantics.
 
 ### Build with Build Arguments
 

@@ -31,13 +31,15 @@ fi
 
 pass=0; fail=0
 
-# run_case <name> <fixture> <SERVICE_NAME> <expected_outputs>
+# run_case <name> <fixture> <SERVICE_NAME> <expected_outputs> [expected_stderr_pattern]
 #
 # expected_outputs is a `;`-separated list of grep-E patterns that must each
 # match a line in $GITHUB_OUTPUT. Prefix a pattern with `!` to assert it MUST
-# NOT match.
+# NOT match. expected_stderr_pattern, if non-empty, must match somewhere in
+# the resolver's stderr (used to assert that errors/warnings actually surface
+# to the job log instead of being silently swallowed).
 run_case() {
-  local name=$1 fixture=$2 svc=$3 expects=$4
+  local name=$1 fixture=$2 svc=$3 expects=$4 expect_stderr=${5:-}
   local case_dir out_file
   case_dir="$TMPROOT/$name"
   mkdir -p "$case_dir"
@@ -68,6 +70,12 @@ run_case() {
       fi
     fi
   done
+  unset IFS
+
+  if [[ -n "$expect_stderr" ]] && ! grep -Eq "$expect_stderr" "$case_dir/stderr"; then
+    printf '  FAIL  %s: missing stderr line matching /%s/\n' "$name" "$expect_stderr"
+    ok=0
+  fi
 
   if [[ "$ok" == "1" ]]; then
     printf '  ok    %s\n' "$name"
@@ -139,6 +147,41 @@ run_case "no-service-name-is-noop" \
 run_case "unknown-service-uses-defaults" \
   "canonical-only.yaml" "does-not-exist" \
   "^resolved_context=code$ ; ^resolved_dockerfile=code/Dockerfile$ ; ^service_name=does-not-exist$"
+
+# 10. Malformed YAML must surface yq's parse error to stderr (i.e. to the GHA
+#     job log) instead of being silently swallowed. The resolver still falls
+#     through to defaults so the build can proceed — the contract is "noisy
+#     fallback", not "fail closed".
+run_case "malformed-yaml-surfaces-error" \
+  "malformed.yaml" "any" \
+  "^resolved_context=code$ ; ^resolved_dockerfile=code/Dockerfile$" \
+  "Error|error"
+
+# ── Docs-vs-code consistency ───────────────────────────────────────────────
+
+# 11. The resolver's deprecation warning links to a `#skyhook-config` anchor
+#     in README.md. Make sure that anchor still exists — silent-rotting docs
+#     turn the warning into a 404 for every user hitting the legacy field.
+readme_anchor_check() {
+  local readme="$REPO_ROOT/README.md"
+  local script="$RESOLVER"
+  local linked_anchor heading_slug
+  linked_anchor=$(grep -oE '#skyhook-config[^ )]*' "$script" | head -n1 || true)
+  if [[ -z "$linked_anchor" ]]; then
+    printf '  ok    readme-anchor-for-deprecation-warning (no anchor referenced)\n'
+    pass=$((pass + 1))
+    return
+  fi
+  # GitHub turns "## Skyhook Config" into anchor "#skyhook-config".
+  if grep -qE '^## +Skyhook Config *$' "$readme"; then
+    printf '  ok    readme-anchor-for-deprecation-warning\n'
+    pass=$((pass + 1))
+  else
+    printf '  FAIL  readme-anchor-for-deprecation-warning: %s referenced from resolver but no matching `## Skyhook Config` heading in README.md\n' "$linked_anchor"
+    fail=$((fail + 1))
+  fi
+}
+readme_anchor_check
 
 echo
 if [[ "$fail" -eq 0 ]]; then

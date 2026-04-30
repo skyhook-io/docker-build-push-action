@@ -29,7 +29,8 @@
 #                   are used as-is).
 #   REPO_PREFIX     Path the consumer expects values to live under (default: "code").
 #   SKYHOOK_FILE    Optional override for the config file path
-#                   (default: "$PWD/.skyhook/skyhook.yaml").
+#                   (default: ".skyhook/skyhook.yaml", resolved relative to
+#                   the working directory the action runs the script in).
 #   GITHUB_OUTPUT   File to append `key=value` outputs to (GHA-compatible).
 #                   If unset, outputs go to stdout instead.
 #
@@ -54,9 +55,13 @@ emit() {
 log() { printf '%s\n' "$*" >&2; }
 
 # yq_get <query> <file> — returns "" for missing/null and normalizes "."/"./".
+# Stderr from yq is intentionally NOT redirected: malformed YAML or yq errors
+# should surface in the job log instead of silently falling through to
+# defaults. `|| true` keeps the script alive on a non-zero exit so the
+# resolution chain can still finish.
 yq_get() {
   local q=$1 file=$2 out
-  out=$(yq "$q" "$file" 2>/dev/null || true)
+  out=$(yq "$q" "$file" || true)
   # yq emits the literal string "null" when a path resolves to a missing key
   # and `// ""` did not absorb it (e.g. when a parent path is itself absent).
   [[ "$out" == "null" ]] && out=""
@@ -94,7 +99,7 @@ if [[ -f "$SKYHOOK_FILE" ]]; then
   ROOT_CTX_LEGACY=$(yq_get '.buildTool.docker.contextPath // ""' "$SKYHOOK_FILE")
   ROOT_DFP=$(yq_get '.buildTool.docker.dockerfilePath // ""' "$SKYHOOK_FILE")
 
-  SERVICE_EXISTS=$(yq '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | .[0].name // ""' "$SKYHOOK_FILE" 2>/dev/null || true)
+  SERVICE_EXISTS=$(yq '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | .[0].name // ""' "$SKYHOOK_FILE" || true)
   [[ "$SERVICE_EXISTS" == "null" ]] && SERVICE_EXISTS=""
   if [[ -n "$SERVICE_EXISTS" ]]; then
     log "Found service '$SERVICE_NAME' in config"
