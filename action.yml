@@ -9,10 +9,10 @@ branding:
 inputs:
   # Skyhook config-based mode — auto-derive context/dockerfile from .skyhook/skyhook.yaml
   service_name:
-    description: 'Service name to build, as defined in .skyhook/skyhook.yaml (services[].name)'
+    description: 'Service name to build, as defined in .skyhook/skyhook.yaml (services[].name). Inputs `context` / `dockerfile` win over values resolved from this name.'
     required: false
   working_dir:
-    description: 'Directory containing .skyhook/skyhook.yaml. Empty = auto-detect (prefer ./code, fall back to .). Resolved paths are emitted relative to this dir.'
+    description: 'Directory containing .skyhook/skyhook.yaml. Empty = auto-detect (prefer ./code, fall back to .). Used as the prefix on resolved context/dockerfile paths.'
     required: false
     default: ''
 
