@@ -212,7 +212,10 @@ runs:
         # otherwise auto-detect — prefer ./code (Skyhook convention), fall
         # back to the workspace root. Resolved paths are emitted relative
         # to whichever dir wins, so the consumer doesn't have to know.
-        WORKING_DIR=${WORKING_DIR%/}  # tolerate `working_dir: code/`
+        # Tolerate `working_dir: code/`, `working_dir: code//`, and
+        # `working_dir: ./code` — emit clean prefixes regardless.
+        WORKING_DIR=${WORKING_DIR#./}
+        while [[ "$WORKING_DIR" == */ ]]; do WORKING_DIR=${WORKING_DIR%/}; done
         if [[ -n "$WORKING_DIR" ]]; then
           CANDIDATES=("$WORKING_DIR")
         else
