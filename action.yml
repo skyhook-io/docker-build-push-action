@@ -238,7 +238,7 @@ runs:
         # yq queries use strenv() so service_name is treated as data, not
         # a fragment of yq syntax — quote/dollar/backtick-safe.
         SERVICE_EXISTS=$(yq '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | .[0].name // ""' "$CONFIG_FILE")
-        if [[ -z "$SERVICE_EXISTS" || "$SERVICE_EXISTS" == "null" ]]; then
+        if [[ -z "$SERVICE_EXISTS" ]]; then
           echo "::warning::Service '$SERVICE_NAME' not found in $CONFIG_FILE. Falling back to input parameters."
           exit 0
         fi
