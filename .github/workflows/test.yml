@@ -197,30 +197,29 @@ jobs:
           # Verify it's the simple service image
           docker run --rm test/skyhook-simple:test | grep -q "path fallback"
 
-  test-skyhook-config-overrides-inputs:
+  test-skyhook-inputs-override-config:
     runs-on: ubuntu-latest
-    name: Test config values override inputs
+    name: Test inputs override config (PR #5 contract)
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Test that config overrides explicit context/dockerfile inputs
+      - name: Test that explicit context/dockerfile inputs override config
         uses: ./
         with:
           tags: test/skyhook-override:test
           service_name: worker
-          # These inputs should be overridden by config values
+          # Explicit inputs win over service_name resolution (PR #5 contract).
           context: ./test
           dockerfile: ./test/Dockerfile
           push: false
           load: true
 
-      - name: Verify config values were used (not inputs)
+      - name: Verify inputs were used (not config)
         run: |
           docker images | grep -E "test/skyhook-override.*test"
-          # If config was used, we should see the worker custom dockerfile message
-          # If inputs were used, we would see the basic test image message
-          docker run --rm test/skyhook-override:test | grep -q "custom docker/Dockerfile"
+          # Inputs win → basic test image, not the worker custom dockerfile.
+          docker run --rm test/skyhook-override:test | grep -q "Test Docker image"
 
   test-skyhook-service-not-found:
     runs-on: ubuntu-latest
@@ -266,3 +265,75 @@ jobs:
         run: |
           docker images | grep -E "test/skyhook-compat.*test"
           docker run --rm test/skyhook-compat:test | grep -q "Test Docker image"
+
+  # Auto-detect picks ./code first (Skyhook checkout convention). Stage the
+  # fixture as ./code/ so the action's probe finds code/.skyhook/skyhook.yaml.
+  test-skyhook-autodetect-code:
+    runs-on: ubuntu-latest
+    name: Test auto-detect picks ./code/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage fixture as ./code
+        run: cp -r test/fixtures/code-checkout code
+
+      - name: Build with service_name, no working_dir (auto-detect)
+        uses: ./
+        with:
+          tags: test/skyhook-autodetect:test
+          service_name: app
+          push: false
+          load: true
+
+      - name: Verify resolver chose code/ prefix
+        run: |
+          docker images | grep -E "test/skyhook-autodetect.*test"
+          # Fixture's Dockerfile is the only one emitting this string;
+          # if the resolver had picked `.` instead of `code`, the build
+          # would have used a different (or missing) Dockerfile.
+          docker run --rm test/skyhook-autodetect:test | grep -q "auto-detect via code/ prefix"
+
+  # Explicit working_dir bypasses auto-detect and points at any directory.
+  test-skyhook-explicit-working-dir:
+    runs-on: ubuntu-latest
+    name: Test explicit working_dir override
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build with explicit working_dir
+        uses: ./
+        with:
+          tags: test/skyhook-explicit-wd:test
+          service_name: app
+          working_dir: test/fixtures/code-checkout
+          push: false
+          load: true
+
+      - name: Verify resolver honored working_dir
+        run: |
+          docker images | grep -E "test/skyhook-explicit-wd.*test"
+          docker run --rm test/skyhook-explicit-wd:test | grep -q "auto-detect via code/ prefix"
+
+  # `working_dir: foo/` (trailing slash) must resolve identically to `foo`.
+  test-skyhook-working-dir-trailing-slash:
+    runs-on: ubuntu-latest
+    name: Test working_dir tolerates trailing slash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build with working_dir ending in slash
+        uses: ./
+        with:
+          tags: test/skyhook-trailing-slash:test
+          service_name: app
+          working_dir: test/fixtures/code-checkout/
+          push: false
+          load: true
+
+      - name: Verify build succeeded with normalized prefix
+        run: |
+          docker images | grep -E "test/skyhook-trailing-slash.*test"
+          docker run --rm test/skyhook-trailing-slash:test | grep -q "auto-detect via code/ prefix"

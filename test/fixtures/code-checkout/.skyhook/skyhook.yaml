@@ -1,0 +1,9 @@
+# Fixture for tests that exercise the working_dir / auto-detect path.
+# Used by jobs that stage this tree as `./code/` (auto-detect) or pass
+# `working_dir: test/fixtures/code-checkout` (explicit override).
+services:
+  - name: app
+    path: app
+    buildTool:
+      docker:
+        contextPath: app
