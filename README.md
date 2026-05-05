@@ -110,7 +110,7 @@ The simplest way to use this action - just provide the image repository and prim
 | `context` | Build context path | No | `.` |
 | `dockerfile` | Path to Dockerfile | No | `Dockerfile` |
 | `service_name` | Resolve `context` / `dockerfile` from `.skyhook/skyhook.yaml` (`services[].name`). Inputs above still win when set; this only fills in what was left empty. | No | - |
-| `working_dir` | Directory containing `.skyhook/skyhook.yaml` (only consulted when `service_name` is set). Empty = auto-detect: prefer `./code`, fall back to `.`. | No | `''` |
+| `working_dir` | Directory containing `.skyhook/skyhook.yaml` (only consulted when `service_name` is set). Empty = auto-detect: prefer `./code`, fall back to `.`. | No | - |
 | `platforms` | Comma-separated platforms | No | `linux/amd64` |
 | `build_args` | Multiline KEY=VALUE build args | No | - |
 | `target` | Target build stage | No | - |
