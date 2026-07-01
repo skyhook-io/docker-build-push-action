@@ -151,7 +151,6 @@ All parameters prefixed with `buildx_` are passed directly to docker/setup-build
 | `buildx_buildkitd_flags` | BuildKit daemon flags | No | - |
 | `buildx_buildkitd_config` | BuildKit daemon config file | No | - |
 | `buildx_buildkitd_config_inline` | BuildKit daemon config inline | No | - |
-| `buildx_install` | Set up docker build as alias to docker buildx | No | - |
 | `buildx_use` | Switch to this builder instance | No | - |
 | `buildx_endpoint` | Address for docker socket or context | No | - |
 | `buildx_platforms` | Fixed platforms for current node | No | - |
@@ -313,7 +312,6 @@ steps:
     buildx_driver_opts: |
       network=host
       image=moby/buildkit:v0.12.0
-    buildx_install: true
     buildx_platforms: linux/amd64,linux/arm64
 
 # Use remote BuildKit instance
@@ -343,7 +341,6 @@ steps:
     base_tag: v1.2.3
     buildx_version: v0.11.2
     buildx_buildkitd_flags: --debug --allow-insecure-entitlement network.host
-    buildx_install: true
 ```
 
 ## Migration from docker/build-push-action

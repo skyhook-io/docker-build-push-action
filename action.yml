@@ -120,9 +120,6 @@ inputs:
   buildx_buildkitd_config_inline:
     description: 'BuildKit daemon config inline'
     required: false
-  buildx_install:
-    description: 'Set up docker build command as an alias to docker buildx'
-    required: false
   buildx_use:
     description: 'Switch to this builder instance'
     required: false
@@ -164,17 +161,17 @@ runs:
   steps:
     - name: Set up QEMU
       if: ${{ contains(inputs.platforms, ',') || (inputs.platforms != '' && inputs.platforms != 'linux/amd64') }}
-      uses: docker/setup-qemu-action@v3
+      uses: docker/setup-qemu-action@v4
 
     # Use default buildx when no custom parameters provided
     - name: Set up Docker Buildx
-      if: ${{ !inputs.buildx_version && !inputs.buildx_name && !inputs.buildx_driver && !inputs.buildx_driver_opts && !inputs.buildx_buildkitd_flags && !inputs.buildx_buildkitd_config && !inputs.buildx_buildkitd_config_inline && !inputs.buildx_install && !inputs.buildx_use && !inputs.buildx_endpoint && !inputs.buildx_platforms && !inputs.buildx_append && !inputs.buildx_keep_state && !inputs.buildx_cache_binary && !inputs.buildx_cleanup }}
-      uses: docker/setup-buildx-action@v3
+      if: ${{ !inputs.buildx_version && !inputs.buildx_name && !inputs.buildx_driver && !inputs.buildx_driver_opts && !inputs.buildx_buildkitd_flags && !inputs.buildx_buildkitd_config && !inputs.buildx_buildkitd_config_inline && !inputs.buildx_use && !inputs.buildx_endpoint && !inputs.buildx_platforms && !inputs.buildx_append && !inputs.buildx_keep_state && !inputs.buildx_cache_binary && !inputs.buildx_cleanup }}
+      uses: docker/setup-buildx-action@v4
 
     # Use custom buildx configuration when any parameter is provided
     - name: Set up Docker Buildx (custom)
-      if: ${{ inputs.buildx_version || inputs.buildx_name || inputs.buildx_driver || inputs.buildx_driver_opts || inputs.buildx_buildkitd_flags || inputs.buildx_buildkitd_config || inputs.buildx_buildkitd_config_inline || inputs.buildx_install || inputs.buildx_use || inputs.buildx_endpoint || inputs.buildx_platforms || inputs.buildx_append || inputs.buildx_keep_state || inputs.buildx_cache_binary || inputs.buildx_cleanup }}
-      uses: docker/setup-buildx-action@v3
+      if: ${{ inputs.buildx_version || inputs.buildx_name || inputs.buildx_driver || inputs.buildx_driver_opts || inputs.buildx_buildkitd_flags || inputs.buildx_buildkitd_config || inputs.buildx_buildkitd_config_inline || inputs.buildx_use || inputs.buildx_endpoint || inputs.buildx_platforms || inputs.buildx_append || inputs.buildx_keep_state || inputs.buildx_cache_binary || inputs.buildx_cleanup }}
+      uses: docker/setup-buildx-action@v4
       with:
         version: ${{ inputs.buildx_version }}
         name: ${{ inputs.buildx_name }}
@@ -183,7 +180,6 @@ runs:
         buildkitd-flags: ${{ inputs.buildx_buildkitd_flags }}
         buildkitd-config: ${{ inputs.buildx_buildkitd_config }}
         buildkitd-config-inline: ${{ inputs.buildx_buildkitd_config_inline }}
-        install: ${{ inputs.buildx_install || 'false' }}
         use: ${{ inputs.buildx_use || 'true' }}
         endpoint: ${{ inputs.buildx_endpoint }}
         platforms: ${{ inputs.buildx_platforms }}
@@ -299,7 +295,7 @@ runs:
     # Generate labels always, and tags only in ergonomic mode (image+base_tag)
     - name: Docker meta
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       with:
         images: ${{ inputs.image }}
         tags: |
@@ -343,7 +339,7 @@ runs:
 
     - name: Build and push Docker image
       id: build
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: ${{ inputs.context || steps.skyhook_config.outputs.resolved_context || '.' }}
         file: ${{ inputs.dockerfile || steps.skyhook_config.outputs.resolved_dockerfile || 'Dockerfile' }}
