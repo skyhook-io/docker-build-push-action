@@ -1,0 +1,51 @@
+{
+  "dependencies": {
+    "docker/build-push-action@v7": "docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc",
+    "docker/metadata-action@v6": "docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302",
+    "docker/setup-buildx-action@v4": "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
+    "docker/setup-qemu-action@v4": "docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1"
+  },
+  "npm": null,
+  "runner_tools": "Existing runner binaries and consumer build inputs are not snapshotted.",
+  "snapshot": "e25174efc8a4dbc6d73b",
+  "source": {
+    "ref": "v1",
+    "repository": "skyhook-io/docker-build-push-action",
+    "sha": "526d49ec0ce798ebca2a01131f1686b202134316"
+  },
+  "tools": {
+    "buildx": {
+      "assets": {
+        "darwin-amd64": {
+          "checksum_url": "https://github.com/docker/buildx/releases/download/v0.38.1/checksums-signed.txt",
+          "encoding": "raw",
+          "sha256": "76e7a809cc98d34a4c1b7db23feac673def5b8dcdddd9e713ef26598689aa796",
+          "url": "https://github.com/docker/buildx/releases/download/v0.38.1/buildx-v0.38.1.darwin-amd64"
+        },
+        "darwin-arm64": {
+          "checksum_url": "https://github.com/docker/buildx/releases/download/v0.38.1/checksums-signed.txt",
+          "encoding": "raw",
+          "sha256": "6f20ba2437865311ef99015bf5d1039c3c8e4d2177c1c64aa41b134b5ecd3012",
+          "url": "https://github.com/docker/buildx/releases/download/v0.38.1/buildx-v0.38.1.darwin-arm64"
+        },
+        "linux-amd64": {
+          "checksum_url": "https://github.com/docker/buildx/releases/download/v0.38.1/checksums.txt",
+          "encoding": "raw",
+          "sha256": "e25d5cd675092bb5d1d03632fdc46cdf3fede7b514dc5f023a105e00d3ce5ad4",
+          "url": "https://github.com/docker/buildx/releases/download/v0.38.1/buildx-v0.38.1.linux-amd64"
+        },
+        "linux-arm64": {
+          "checksum_url": "https://github.com/docker/buildx/releases/download/v0.38.1/checksums.txt",
+          "encoding": "raw",
+          "sha256": "3b83b3731916ba433feccaaa689fe5bcdc81c641d92c8e6c2ea865dfa141c97a",
+          "url": "https://github.com/docker/buildx/releases/download/v0.38.1/buildx-v0.38.1.linux-arm64"
+        }
+      },
+      "version": "v0.38.1"
+    },
+    "images": {
+      "binfmt": "tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0",
+      "buildkit": "moby/buildkit@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea"
+    }
+  }
+}

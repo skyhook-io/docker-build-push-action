@@ -1,439 +1,265 @@
-name: 'Skyhook Docker Multi-Registry Build Push'
-description: 'Thin wrapper around docker/build-push-action with smart tagging and multi-registry support'
-author: 'Skyhook'
-
+name: Skyhook Docker Multi-Registry Build Push
+description: Thin wrapper around docker/build-push-action with smart tagging and multi-registry support
+author: Skyhook
 branding:
-  icon: 'package'
-  color: 'purple'
-
+  icon: package
+  color: purple
 inputs:
-  # Skyhook config-based mode — auto-derive context/dockerfile from .skyhook/skyhook.yaml
   service_name:
-    description: 'Service name to build, as defined in .skyhook/skyhook.yaml (services[].name)'
+    description: Service name to build, as defined in .skyhook/skyhook.yaml (services[].name)
     required: false
-
-  # Manual mode — explicit list of image:tag pairs (newline-delimited). Mix registries as needed.
   tags:
-    description: 'Newline-delimited list of image:tag'
+    description: Newline-delimited list of image:tag
     required: false
-
-  # Ergonomic mode — recommended. One build, many registries. No tags/digests in image list.
   image:
-    description: 'Base image repo(s), newline-delimited (e.g., ghcr.io/org/app). Must NOT include :tag or @digest.'
+    description: Base image repo(s), newline-delimited (e.g., ghcr.io/org/app). Must NOT include :tag or @digest.
     required: false
   base_tag:
-    description: 'Primary tag value (e.g., v1.2.3 or branch-date)'
+    description: Primary tag value (e.g., v1.2.3 or branch-date)
     required: false
   tag_latest_on_default_branch:
-    description: 'Add :latest tag when building from default branch (main/master)'
+    description: Add :latest tag when building from default branch (main/master)
     required: false
     default: 'true'
   tag_sha:
-    description: 'Also tag :sha-<short> for traceability'
+    description: Also tag :sha-<short> for traceability
     required: false
     default: 'true'
   include_ref_tags:
-    description: 'Also generate branch/PR ref tags via metadata-action'
+    description: Also generate branch/PR ref tags via metadata-action
     required: false
     default: 'false'
   include_semver_tags:
-    description: 'If building a SemVer tag, also add major/minor tags via metadata-action'
+    description: If building a SemVer tag, also add major/minor tags via metadata-action
     required: false
     default: 'true'
-
-  # Build inputs (pass-through to docker/build-push-action)
   context:
-    description: 'Build context. If set, overrides any value derived from service_name. Defaults to "." when neither is provided.'
+    description: Build context. If set, overrides any value derived from service_name. Defaults to "." when neither is provided.
     required: false
   dockerfile:
-    description: 'Path to Dockerfile (relative to context or absolute). If set, overrides any value derived from service_name. Defaults to "Dockerfile" when neither is provided.'
+    description: Path to Dockerfile (relative to context or absolute). If set, overrides any value derived from service_name. Defaults to "Dockerfile" when neither is provided.
     required: false
   platforms:
-    description: 'Comma-separated platforms'
+    description: Comma-separated platforms
     required: false
-    default: 'linux/amd64'
+    default: linux/amd64
   build_args:
-    description: 'Multiline KEY=VALUE build args'
+    description: Multiline KEY=VALUE build args
     required: false
   cache_from:
-    description: 'Build cache sources'
+    description: Build cache sources
     required: false
-    default: 'type=gha'
+    default: type=gha
   cache_to:
-    description: 'Build cache exports'
+    description: Build cache exports
     required: false
-    default: 'type=gha,mode=max'
+    default: type=gha,mode=max
   push:
-    description: 'Push images to registry'
+    description: Push images to registry
     required: false
     default: 'true'
   load:
-    description: 'Load into local Docker (mutually exclusive with push)'
+    description: Load into local Docker (mutually exclusive with push)
     required: false
     default: 'false'
   no_cache:
-    description: 'Disable cache'
+    description: Disable cache
     required: false
     default: 'false'
   pull:
-    description: 'Always pull newer base images'
+    description: Always pull newer base images
     required: false
     default: 'false'
   target:
-    description: 'Target stage'
+    description: Target stage
     required: false
   secrets:
-    description: 'Build secrets (multiline)'
+    description: Build secrets (multiline)
     required: false
   ssh:
-    description: 'SSH agent sockets/keys'
+    description: SSH agent sockets/keys
     required: false
   provenance:
-    description: 'Enable provenance attestation'
+    description: Enable provenance attestation
     required: false
     default: 'false'
   sbom:
-    description: 'Generate SBOM attestation'
+    description: Generate SBOM attestation
     required: false
     default: 'false'
-
-  # Setup buildx options (pass-through to docker/setup-buildx-action)
-  # All parameters prefixed with buildx_ are passed directly to setup-buildx-action
   buildx_version:
-    description: 'Buildx version (e.g., v0.3.0, latest, https://github.com/docker/buildx.git#master)'
+    description: Buildx version (e.g., v0.3.0, latest, https://github.com/docker/buildx.git#master)
     required: false
+    default: v0.38.1
   buildx_name:
-    description: 'Name of the builder (auto-generated if not specified)'
+    description: Name of the builder (auto-generated if not specified)
     required: false
   buildx_driver:
-    description: 'Builder driver (docker-container, docker, kubernetes, remote)'
+    description: Builder driver (docker-container, docker, kubernetes, remote)
     required: false
   buildx_driver_opts:
-    description: 'List of additional driver-specific options (e.g., image=moby/buildkit:master)'
+    description: List of additional driver-specific options (e.g., image=moby/buildkit:master)
     required: false
   buildx_buildkitd_flags:
-    description: 'BuildKit daemon flags'
+    description: BuildKit daemon flags
     required: false
   buildx_buildkitd_config:
-    description: 'BuildKit daemon config file'
+    description: BuildKit daemon config file
     required: false
   buildx_buildkitd_config_inline:
-    description: 'BuildKit daemon config inline'
+    description: BuildKit daemon config inline
     required: false
   buildx_install:
-    description: 'Set up docker build command as an alias to docker buildx'
+    description: Set up docker build command as an alias to docker buildx
     required: false
   buildx_use:
-    description: 'Switch to this builder instance'
+    description: Switch to this builder instance
     required: false
   buildx_endpoint:
-    description: 'Optional address for docker socket or context from docker context ls'
+    description: Optional address for docker socket or context from docker context ls
     required: false
   buildx_platforms:
-    description: 'Fixed platforms for current node (overrides detected ones)'
+    description: Fixed platforms for current node (overrides detected ones)
     required: false
   buildx_append:
-    description: 'Append additional nodes to the builder (YAML format)'
+    description: Append additional nodes to the builder (YAML format)
     required: false
   buildx_keep_state:
-    description: 'Keep BuildKit state on cleanup (useful for persistent self-hosted runners)'
+    description: Keep BuildKit state on cleanup (useful for persistent self-hosted runners)
     required: false
   buildx_cache_binary:
-    description: 'Cache buildx binary to GitHub Actions cache backend'
+    description: Cache buildx binary to GitHub Actions cache backend
     required: false
   buildx_cleanup:
-    description: 'Cleanup temp files and remove builder at the end of a job'
+    description: Cleanup temp files and remove builder at the end of a job
     required: false
-
 outputs:
   imageid:
-    description: 'Image ID'
+    description: Image ID
     value: ${{ steps.build.outputs.imageid }}
   digest:
-    description: 'Image digest'
+    description: Image digest
     value: ${{ steps.build.outputs.digest }}
   metadata:
-    description: 'Build result metadata'
+    description: Build result metadata
     value: ${{ steps.build.outputs.metadata }}
   tags_list:
-    description: 'Newline-delimited image:tag list actually used'
+    description: Newline-delimited image:tag list actually used
     value: ${{ steps.final_tags.outputs.tags }}
-
 runs:
-  using: 'composite'
+  using: composite
   steps:
-    - name: Set up QEMU
-      if: ${{ contains(inputs.platforms, ',') || (inputs.platforms != '' && inputs.platforms != 'linux/amd64') }}
-      uses: docker/setup-qemu-action@v4
+  - name: Check locked Docker tool options
+    shell: bash
+    env:
+      REQUESTED_VERSION: ${{ inputs.buildx_version }}
+      LOCKED_VERSION: v0.38.1
+      DRIVER: ${{ inputs.buildx_driver }}
+      DRIVER_OPTS: ${{ inputs.buildx_driver_opts }}
+      APPEND: ${{ inputs.buildx_append }}
+      ENDPOINT: ${{ inputs.buildx_endpoint }}
+      BUILDER: ${{ inputs.buildx_name }}
+    run: "set -euo pipefail\nif [[ ( -n \"$REQUESTED_VERSION\" && \"$REQUESTED_VERSION\" != latest && \"${REQUESTED_VERSION#v}\" != \"${LOCKED_VERSION#v}\" ) || -n \"$DRIVER_OPTS\" || -n \"$APPEND\" || -n \"$ENDPOINT\" || -n \"$BUILDER\" || ( -n \"$DRIVER\" && \"$DRIVER\" != docker-container ) ]]; then\n  echo \"::error::Locked Docker snapshots require the recorded Buildx version and a new local docker-container builder without tool overrides.\"\n  exit 1\nfi"
+  - name: Install locked buildx
+    shell: bash
+    run: python3 "${{ github.action_path }}/.locked/install.py" buildx
+    env:
+      LOCKED_REQUESTED_VERSION: ${{ inputs.buildx_version }}
+  - name: Set up QEMU
+    if: ${{ contains(inputs.platforms, ',') || (inputs.platforms != '' && inputs.platforms != 'linux/amd64') }}
+    uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
+    with:
+      image: tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+  - name: Set up Docker Buildx
+    if: ${{ !inputs.buildx_version && !inputs.buildx_name && !inputs.buildx_driver && !inputs.buildx_driver_opts && !inputs.buildx_buildkitd_flags && !inputs.buildx_buildkitd_config && !inputs.buildx_buildkitd_config_inline && !inputs.buildx_install && !inputs.buildx_use && !inputs.buildx_endpoint && !inputs.buildx_platforms && !inputs.buildx_append && !inputs.buildx_keep_state && !inputs.buildx_cache_binary && !inputs.buildx_cleanup }}
+    uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+    with:
+      driver-opts: image=moby/buildkit@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
+      driver: docker-container
+      keep-state: 'false'
+  - name: Set up Docker Buildx (custom)
+    if: ${{ inputs.buildx_version || inputs.buildx_name || inputs.buildx_driver || inputs.buildx_driver_opts || inputs.buildx_buildkitd_flags || inputs.buildx_buildkitd_config || inputs.buildx_buildkitd_config_inline || inputs.buildx_install || inputs.buildx_use || inputs.buildx_endpoint || inputs.buildx_platforms || inputs.buildx_append || inputs.buildx_keep_state || inputs.buildx_cache_binary || inputs.buildx_cleanup }}
+    uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+    with:
+      name: ${{ inputs.buildx_name }}
+      driver: docker-container
+      driver-opts: image=moby/buildkit@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
+      buildkitd-flags: ${{ inputs.buildx_buildkitd_flags }}
+      buildkitd-config: ${{ inputs.buildx_buildkitd_config }}
+      buildkitd-config-inline: ${{ inputs.buildx_buildkitd_config_inline }}
+      use: ${{ inputs.buildx_use || 'true' }}
+      endpoint: ${{ inputs.buildx_endpoint }}
+      platforms: ${{ inputs.buildx_platforms }}
+      append: ${{ inputs.buildx_append }}
+      keep-state: 'false'
+      cache-binary: ${{ inputs.buildx_cache_binary || 'true' }}
+      cleanup: ${{ inputs.buildx_cleanup || 'true' }}
+  - name: Alias docker build to buildx
+    if: ${{ inputs.buildx_install == 'true' }}
+    shell: bash
+    run: docker buildx install
+  - name: Resolve build config from .skyhook/skyhook.yaml
+    id: skyhook_config
+    if: ${{ inputs.service_name != '' && (inputs.context == '' || inputs.dockerfile == '') }}
+    shell: bash
+    working-directory: code
+    run: "set -euo pipefail\n\nSERVICE_NAME=\"${{ inputs.service_name }}\"\n\n# Find the config file\nif [[ ! -f \".skyhook/skyhook.yaml\" ]]; then\n  echo \"::warning::service_name '$SERVICE_NAME' provided but .skyhook/skyhook.yaml not found. Falling back to input parameters.\"\n  exit 0\nfi\nCONFIG_FILE=\".skyhook/skyhook.yaml\"\necho \"Found config file: $CONFIG_FILE\"\n\n# Check if service exists\nSERVICE_EXISTS=$(yq \".services[] | select(.name == \\\"$SERVICE_NAME\\\") | .name\" \"$CONFIG_FILE\")\nif [[ -z \"$SERVICE_EXISTS\" ]]; then\n  echo \"::warning::Service '$SERVICE_NAME' not found in $CONFIG_FILE. Falling back to input parameters.\"\n  exit 0\nfi\n\necho \"Found service '$SERVICE_NAME' in config\"\n\n# Extract build config using yq\nCONTEXT_PATH=$(yq \".services[] | select(.name == \\\"$SERVICE_NAME\\\") | .buildTool.docker.contextPath // \\\"\\\"\" \"$CONFIG_FILE\")\nDOCKERFILE_PATH=$(yq \".services[] | select(.name == \\\"$SERVICE_NAME\\\") | .buildTool.docker.dockerfilePath\
+      \ // \\\"\\\"\" \"$CONFIG_FILE\")\n\n# Paths in skyhook.yaml are relative to repo root; this step runs in working-directory: code\nREPO_PREFIX=\"code\"\n\n# Only emit resolved_context if user did not provide inputs.context\nif [[ -z \"${{ inputs.context }}\" ]]; then\n  if [[ -n \"$CONTEXT_PATH\" ]]; then\n    RESOLVED_CONTEXT=\"$REPO_PREFIX/$CONTEXT_PATH\"\n  else\n    RESOLVED_CONTEXT=\"$REPO_PREFIX\"\n  fi\n  echo \"Using context from config: $RESOLVED_CONTEXT\"\n  echo \"resolved_context=$RESOLVED_CONTEXT\" >> \"$GITHUB_OUTPUT\"\nfi\n\n# Only emit resolved_dockerfile if user did not provide inputs.dockerfile\nif [[ -z \"${{ inputs.dockerfile }}\" ]]; then\n  if [[ -z \"$DOCKERFILE_PATH\" && -n \"$CONTEXT_PATH\" ]]; then\n    DOCKERFILE_PATH=\"${CONTEXT_PATH}/Dockerfile\"\n  fi\n  if [[ -n \"$DOCKERFILE_PATH\" ]]; then\n    FULL_DOCKERFILE_PATH=\"$REPO_PREFIX/$DOCKERFILE_PATH\"\n    echo \"Using dockerfile from config: $FULL_DOCKERFILE_PATH\"\n    echo \"resolved_dockerfile=$FULL_DOCKERFILE_PATH\"\
+      \ >> \"$GITHUB_OUTPUT\"\n  fi\nfi\n\necho \"config_file=$CONFIG_FILE\" >> \"$GITHUB_OUTPUT\"\necho \"service_name=$SERVICE_NAME\" >> \"$GITHUB_OUTPUT\"\n"
+  - name: Validate inputs
+    shell: bash
+    run: "set -euo pipefail\nto_lines() { tr -d '\\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' ; }\n\nif [[ \"${{ inputs.push }}\" == \"true\" && \"${{ inputs.load }}\" == \"true\" ]]; then\n  echo \"::error::Cannot use both 'push: true' and 'load: true'.\"\n  exit 1\nfi\n\n# Warn about multi-platform with load\nif [[ \"${{ inputs.load }}\" == \"true\" && \"${{ inputs.platforms }}\" == *\",\"* ]]; then\n  echo \"::warning::Loading multi-platform images is not fully supported. Only the native platform will be loaded into Docker.\"\nfi\n# Ergonomic mode must be complete and exclusive\nif [[ -n \"${{ inputs.image }}\" || -n \"${{ inputs.base_tag }}\" ]]; then\n  if [[ -z \"${{ inputs.image }}\" || -z \"${{ inputs.base_tag }}\" ]]; then\n    echo \"::error::Provide both 'image' and 'base_tag' (or neither).\"\n    exit 1\n  fi\n  if [[ -n \"${{ inputs.tags }}\" ]]; then\n    echo \"::error::Do not combine 'image/base_tag' with 'tags'.\"\n    exit 1\n  fi\n  # Validate no tags/digests in image\
+      \ entries\n  has_tag_after_last_slash() { local s=\"$1\"; local seg=${s##*/}; [[ \"$seg\" == *:* ]]; }\n  \n  while IFS= read -r repo; do\n    [[ -z \"$repo\" ]] && continue\n    if has_tag_after_last_slash \"$repo\"; then\n      echo \"::error::'image' entries must NOT include a tag: $repo\"\n      exit 1\n    fi\n    if [[ \"$repo\" =~ @sha256:[0-9a-fA-F]{64}$ ]]; then\n      echo \"::error::'image' entries must NOT include a digest: $repo\"\n      exit 1\n    fi\n  done <<< \"$(printf \"%s\\n\" \"${{ inputs.image }}\" | to_lines | awk 'NF')\"\nelif [[ -z \"${{ inputs.tags }}\" ]]; then\n  echo \"::error::Provide either 'image'+'base_tag' or 'tags'.\"\n  exit 1\nfi\n"
+  - name: Docker meta
+    id: meta
+    uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
+    with:
+      images: ${{ inputs.image }}
+      tags: '${{ (inputs.image != '''' && inputs.base_tag != '''') && format(''type=raw,value={0}'', inputs.base_tag) || '''' }}
 
-    # Use default buildx when no custom parameters provided
-    - name: Set up Docker Buildx
-      if: ${{ !inputs.buildx_version && !inputs.buildx_name && !inputs.buildx_driver && !inputs.buildx_driver_opts && !inputs.buildx_buildkitd_flags && !inputs.buildx_buildkitd_config && !inputs.buildx_buildkitd_config_inline && !inputs.buildx_install && !inputs.buildx_use && !inputs.buildx_endpoint && !inputs.buildx_platforms && !inputs.buildx_append && !inputs.buildx_keep_state && !inputs.buildx_cache_binary && !inputs.buildx_cleanup }}
-      uses: docker/setup-buildx-action@v4
+        ${{ (inputs.image != '''' && inputs.base_tag != '''' && inputs.tag_sha == ''true'') && ''type=sha,format=short,prefix=sha-'' || '''' }}
 
-    # Use custom buildx configuration when any parameter is provided
-    - name: Set up Docker Buildx (custom)
-      if: ${{ inputs.buildx_version || inputs.buildx_name || inputs.buildx_driver || inputs.buildx_driver_opts || inputs.buildx_buildkitd_flags || inputs.buildx_buildkitd_config || inputs.buildx_buildkitd_config_inline || inputs.buildx_install || inputs.buildx_use || inputs.buildx_endpoint || inputs.buildx_platforms || inputs.buildx_append || inputs.buildx_keep_state || inputs.buildx_cache_binary || inputs.buildx_cleanup }}
-      uses: docker/setup-buildx-action@v4
-      with:
-        version: ${{ inputs.buildx_version }}
-        name: ${{ inputs.buildx_name }}
-        driver: ${{ inputs.buildx_driver || 'docker-container' }}
-        driver-opts: ${{ inputs.buildx_driver_opts }}
-        buildkitd-flags: ${{ inputs.buildx_buildkitd_flags }}
-        buildkitd-config: ${{ inputs.buildx_buildkitd_config }}
-        buildkitd-config-inline: ${{ inputs.buildx_buildkitd_config_inline }}
-        use: ${{ inputs.buildx_use || 'true' }}
-        endpoint: ${{ inputs.buildx_endpoint }}
-        platforms: ${{ inputs.buildx_platforms }}
-        append: ${{ inputs.buildx_append }}
-        keep-state: ${{ inputs.buildx_keep_state || 'false' }}
-        cache-binary: ${{ inputs.buildx_cache_binary || 'true' }}
-        cleanup: ${{ inputs.buildx_cleanup || 'true' }}
+        ${{ (inputs.image != '''' && inputs.base_tag != '''' && inputs.tag_latest_on_default_branch == ''true'') && ''type=raw,value=latest,enable={{is_default_branch}}'' || '''' }}
 
-    # setup-buildx-action v4 removed the `install` input; replicate it here so the
-    # buildx_install interface is preserved (aliases `docker build` to `docker buildx`).
-    - name: Alias docker build to buildx
-      if: ${{ inputs.buildx_install == 'true' }}
-      shell: bash
-      run: docker buildx install
+        ${{ (inputs.image != '''' && inputs.base_tag != '''' && inputs.include_ref_tags == ''true'') && ''type=ref,event=branch'' || '''' }}
 
-    - name: Resolve build config from .skyhook/skyhook.yaml
-      id: skyhook_config
-      if: ${{ inputs.service_name != '' && (inputs.context == '' || inputs.dockerfile == '') }}
-      shell: bash
-      working-directory: code
-      run: |
-        set -euo pipefail
+        ${{ (inputs.image != '''' && inputs.base_tag != '''' && inputs.include_ref_tags == ''true'') && ''type=ref,event=pr'' || '''' }}
 
-        SERVICE_NAME="${{ inputs.service_name }}"
+        ${{ (inputs.image != '''' && inputs.base_tag != '''' && inputs.include_semver_tags == ''true'') && ''type=semver,pattern={{version}}'' || '''' }}
 
-        # Find the config file
-        if [[ ! -f ".skyhook/skyhook.yaml" ]]; then
-          echo "::warning::service_name '$SERVICE_NAME' provided but .skyhook/skyhook.yaml not found. Falling back to input parameters."
-          exit 0
-        fi
-        CONFIG_FILE=".skyhook/skyhook.yaml"
-        echo "Found config file: $CONFIG_FILE"
-
-        # Check if service exists
-        SERVICE_EXISTS=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .name" "$CONFIG_FILE")
-        if [[ -z "$SERVICE_EXISTS" ]]; then
-          echo "::warning::Service '$SERVICE_NAME' not found in $CONFIG_FILE. Falling back to input parameters."
-          exit 0
-        fi
-
-        echo "Found service '$SERVICE_NAME' in config"
-
-        # Extract build config using yq
-        CONTEXT_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.contextPath // \"\"" "$CONFIG_FILE")
-        DOCKERFILE_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.dockerfilePath // \"\"" "$CONFIG_FILE")
-
-        # Paths in skyhook.yaml are relative to repo root; this step runs in working-directory: code
-        REPO_PREFIX="code"
-
-        # Only emit resolved_context if user did not provide inputs.context
-        if [[ -z "${{ inputs.context }}" ]]; then
-          if [[ -n "$CONTEXT_PATH" ]]; then
-            RESOLVED_CONTEXT="$REPO_PREFIX/$CONTEXT_PATH"
-          else
-            RESOLVED_CONTEXT="$REPO_PREFIX"
-          fi
-          echo "Using context from config: $RESOLVED_CONTEXT"
-          echo "resolved_context=$RESOLVED_CONTEXT" >> "$GITHUB_OUTPUT"
-        fi
-
-        # Only emit resolved_dockerfile if user did not provide inputs.dockerfile
-        if [[ -z "${{ inputs.dockerfile }}" ]]; then
-          if [[ -z "$DOCKERFILE_PATH" && -n "$CONTEXT_PATH" ]]; then
-            DOCKERFILE_PATH="${CONTEXT_PATH}/Dockerfile"
-          fi
-          if [[ -n "$DOCKERFILE_PATH" ]]; then
-            FULL_DOCKERFILE_PATH="$REPO_PREFIX/$DOCKERFILE_PATH"
-            echo "Using dockerfile from config: $FULL_DOCKERFILE_PATH"
-            echo "resolved_dockerfile=$FULL_DOCKERFILE_PATH" >> "$GITHUB_OUTPUT"
-          fi
-        fi
-
-        echo "config_file=$CONFIG_FILE" >> "$GITHUB_OUTPUT"
-        echo "service_name=$SERVICE_NAME" >> "$GITHUB_OUTPUT"
-
-    - name: Validate inputs
-      shell: bash
-      run: |
-        set -euo pipefail
-        to_lines() { tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' ; }
-        
-        if [[ "${{ inputs.push }}" == "true" && "${{ inputs.load }}" == "true" ]]; then
-          echo "::error::Cannot use both 'push: true' and 'load: true'."
-          exit 1
-        fi
-        
-        # Warn about multi-platform with load
-        if [[ "${{ inputs.load }}" == "true" && "${{ inputs.platforms }}" == *","* ]]; then
-          echo "::warning::Loading multi-platform images is not fully supported. Only the native platform will be loaded into Docker."
-        fi
-        # Ergonomic mode must be complete and exclusive
-        if [[ -n "${{ inputs.image }}" || -n "${{ inputs.base_tag }}" ]]; then
-          if [[ -z "${{ inputs.image }}" || -z "${{ inputs.base_tag }}" ]]; then
-            echo "::error::Provide both 'image' and 'base_tag' (or neither)."
-            exit 1
-          fi
-          if [[ -n "${{ inputs.tags }}" ]]; then
-            echo "::error::Do not combine 'image/base_tag' with 'tags'."
-            exit 1
-          fi
-          # Validate no tags/digests in image entries
-          has_tag_after_last_slash() { local s="$1"; local seg=${s##*/}; [[ "$seg" == *:* ]]; }
-          
-          while IFS= read -r repo; do
-            [[ -z "$repo" ]] && continue
-            if has_tag_after_last_slash "$repo"; then
-              echo "::error::'image' entries must NOT include a tag: $repo"
-              exit 1
-            fi
-            if [[ "$repo" =~ @sha256:[0-9a-fA-F]{64}$ ]]; then
-              echo "::error::'image' entries must NOT include a digest: $repo"
-              exit 1
-            fi
-          done <<< "$(printf "%s\n" "${{ inputs.image }}" | to_lines | awk 'NF')"
-        elif [[ -z "${{ inputs.tags }}" ]]; then
-          echo "::error::Provide either 'image'+'base_tag' or 'tags'."
-          exit 1
-        fi
-
-    # Generate labels always, and tags only in ergonomic mode (image+base_tag)
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@v6
-      with:
-        images: ${{ inputs.image }}
-        tags: |
-          ${{ (inputs.image != '' && inputs.base_tag != '') && format('type=raw,value={0}', inputs.base_tag) || '' }}
-          ${{ (inputs.image != '' && inputs.base_tag != '' && inputs.tag_sha == 'true') && 'type=sha,format=short,prefix=sha-' || '' }}
-          ${{ (inputs.image != '' && inputs.base_tag != '' && inputs.tag_latest_on_default_branch == 'true') && 'type=raw,value=latest,enable={{is_default_branch}}' || '' }}
-          ${{ (inputs.image != '' && inputs.base_tag != '' && inputs.include_ref_tags == 'true') && 'type=ref,event=branch' || '' }}
-          ${{ (inputs.image != '' && inputs.base_tag != '' && inputs.include_ref_tags == 'true') && 'type=ref,event=pr' || '' }}
-          ${{ (inputs.image != '' && inputs.base_tag != '' && inputs.include_semver_tags == 'true') && 'type=semver,pattern={{version}}' || '' }}
-
-    # Final tag selection: manual (if provided) else metadata-action's tags
-    - name: Finalize tags
-      id: final_tags
-      shell: bash
-      run: |
-        set -euo pipefail
-        to_lines() { tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' ; }
-
-        if [[ -n "${{ inputs.tags }}" ]]; then
-          TAGS="$(printf "%s\n" "${{ inputs.tags }}" | to_lines)"
-        else
-          TAGS="${{ steps.meta.outputs.tags }}"
-        fi
-        
-        # Stable de-dupe, preserve order
-        TAGS="$(printf "%s\n" "$TAGS" | awk 'NF && !a[$0]++')"
-
-        if [[ -z "$TAGS" ]]; then
-          echo "::error::No tags were produced. Provide 'tags' or 'image'+'base_tag'."
-          exit 1
-        fi
-
-        {
-          echo "tags<<EOF"
-          printf "%s\n" "$TAGS"
-          echo "EOF"
-        } >> "$GITHUB_OUTPUT"
-
-        echo "📝 Tags to build:"
-        printf "%s\n" "$TAGS" | sed 's/^/  - /'
-
-    - name: Build and push Docker image
-      id: build
-      uses: docker/build-push-action@v7
-      with:
-        context: ${{ inputs.context || steps.skyhook_config.outputs.resolved_context || '.' }}
-        file: ${{ inputs.dockerfile || steps.skyhook_config.outputs.resolved_dockerfile || 'Dockerfile' }}
-        platforms: ${{ inputs.platforms }}
-        build-args: ${{ inputs.build_args }}
-        labels: ${{ steps.meta.outputs.labels }}
-        tags: ${{ steps.final_tags.outputs.tags }}
-        push: ${{ inputs.push }}
-        load: ${{ inputs.load }}
-        cache-from: ${{ inputs.cache_from }}
-        cache-to: ${{ inputs.cache_to }}
-        no-cache: ${{ inputs.no_cache }}
-        pull: ${{ inputs.pull }}
-        target: ${{ inputs.target }}
-        secrets: ${{ inputs.secrets }}
-        ssh: ${{ inputs.ssh }}
-        provenance: ${{ inputs.provenance }}
-        sbom: ${{ inputs.sbom }}
-
-    - name: Generate summary
-      if: always()
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        if [[ "${{ steps.build.outcome }}" == "success" ]]; then
-          echo "✅ **Build Status:** Success" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Built Images" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          printf "%s\n" "${{ steps.final_tags.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Add reminder for multi-registry authentication
-          REGISTRY_COUNT=$(printf "%s\n" "${{ steps.final_tags.outputs.tags }}" | sed -E 's|/.*||' | sort -u | wc -l | tr -d ' ')
-          if [[ $REGISTRY_COUNT -gt 1 ]]; then
-            echo "> 💡 **Note:** Using multiple registries - ensure you've authenticated to each one before this action." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [[ -n "${{ steps.build.outputs.digest }}" ]]; then
-            echo "### 🔑 Image Digest" >> $GITHUB_STEP_SUMMARY
-            echo "\`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [[ -n "${{ steps.build.outputs.imageid }}" ]]; then
-            echo "### 🆔 Image ID" >> $GITHUB_STEP_SUMMARY
-            echo "\`${{ steps.build.outputs.imageid }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "### ⚙️ Build Configuration" >> $GITHUB_STEP_SUMMARY
-
-          # Determine effective values and sources (input wins over config, fallback to default)
-          EFFECTIVE_CONTEXT="${{ inputs.context || steps.skyhook_config.outputs.resolved_context || '.' }}"
-          EFFECTIVE_DOCKERFILE="${{ inputs.dockerfile || steps.skyhook_config.outputs.resolved_dockerfile || 'Dockerfile' }}"
-
-          if [[ -n "${{ steps.skyhook_config.outputs.config_file }}" ]]; then
-            echo "> 📄 Config source: \`${{ steps.skyhook_config.outputs.config_file }}\` (service: \`${{ steps.skyhook_config.outputs.service_name }}\`)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          CONTEXT_SOURCE=""
-          if [[ -n "${{ inputs.context }}" ]]; then
-            CONTEXT_SOURCE=" _(from input)_"
-          elif [[ -n "${{ steps.skyhook_config.outputs.resolved_context }}" ]]; then
-            CONTEXT_SOURCE=" _(from config)_"
-          fi
-
-          DOCKERFILE_SOURCE=""
-          if [[ -n "${{ inputs.dockerfile }}" ]]; then
-            DOCKERFILE_SOURCE=" _(from input)_"
-          elif [[ -n "${{ steps.skyhook_config.outputs.resolved_dockerfile }}" ]]; then
-            DOCKERFILE_SOURCE=" _(from config)_"
-          fi
-
-          echo "- **Context:** \`${EFFECTIVE_CONTEXT}\`${CONTEXT_SOURCE}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Dockerfile:** \`${EFFECTIVE_DOCKERFILE}\`${DOCKERFILE_SOURCE}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Platforms:** \`${{ inputs.platforms }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Push:** \`${{ inputs.push }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Load:** \`${{ inputs.load }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Cache:** \`${{ inputs.cache_from }}\` → \`${{ inputs.cache_to }}\`" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ **Build Status:** Failed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Check the logs above for error details." >> $GITHUB_STEP_SUMMARY
-        fi
+        '
+  - name: Finalize tags
+    id: final_tags
+    shell: bash
+    run: "set -euo pipefail\nto_lines() { tr -d '\\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' ; }\n\nif [[ -n \"${{ inputs.tags }}\" ]]; then\n  TAGS=\"$(printf \"%s\\n\" \"${{ inputs.tags }}\" | to_lines)\"\nelse\n  TAGS=\"${{ steps.meta.outputs.tags }}\"\nfi\n\n# Stable de-dupe, preserve order\nTAGS=\"$(printf \"%s\\n\" \"$TAGS\" | awk 'NF && !a[$0]++')\"\n\nif [[ -z \"$TAGS\" ]]; then\n  echo \"::error::No tags were produced. Provide 'tags' or 'image'+'base_tag'.\"\n  exit 1\nfi\n\n{\n  echo \"tags<<EOF\"\n  printf \"%s\\n\" \"$TAGS\"\n  echo \"EOF\"\n} >> \"$GITHUB_OUTPUT\"\n\necho \"\U0001F4DD Tags to build:\"\nprintf \"%s\\n\" \"$TAGS\" | sed 's/^/  - /'\n"
+  - name: Build and push Docker image
+    id: build
+    uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+    with:
+      context: ${{ inputs.context || steps.skyhook_config.outputs.resolved_context || '.' }}
+      file: ${{ inputs.dockerfile || steps.skyhook_config.outputs.resolved_dockerfile || 'Dockerfile' }}
+      platforms: ${{ inputs.platforms }}
+      build-args: ${{ inputs.build_args }}
+      labels: ${{ steps.meta.outputs.labels }}
+      tags: ${{ steps.final_tags.outputs.tags }}
+      push: ${{ inputs.push }}
+      load: ${{ inputs.load }}
+      cache-from: ${{ inputs.cache_from }}
+      cache-to: ${{ inputs.cache_to }}
+      no-cache: ${{ inputs.no_cache }}
+      pull: ${{ inputs.pull }}
+      target: ${{ inputs.target }}
+      secrets: ${{ inputs.secrets }}
+      ssh: ${{ inputs.ssh }}
+      provenance: ${{ inputs.provenance }}
+      sbom: ${{ inputs.sbom }}
+    env:
+      DOCKER_BUILD_SUMMARY: 'false'
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
+  - name: Generate summary
+    if: always()
+    shell: bash
+    run: "set -euo pipefail\necho \"## \U0001F433 Docker Build Summary\" >> $GITHUB_STEP_SUMMARY\necho \"\" >> $GITHUB_STEP_SUMMARY\nif [[ \"${{ steps.build.outcome }}\" == \"success\" ]]; then\n  echo \"✅ **Build Status:** Success\" >> $GITHUB_STEP_SUMMARY\n  echo \"\" >> $GITHUB_STEP_SUMMARY\n  echo \"### \U0001F4E6 Built Images\" >> $GITHUB_STEP_SUMMARY\n  echo '```' >> $GITHUB_STEP_SUMMARY\n  printf \"%s\\n\" \"${{ steps.final_tags.outputs.tags }}\" >> $GITHUB_STEP_SUMMARY\n  echo '```' >> $GITHUB_STEP_SUMMARY\n  echo \"\" >> $GITHUB_STEP_SUMMARY\n  \n  # Add reminder for multi-registry authentication\n  REGISTRY_COUNT=$(printf \"%s\\n\" \"${{ steps.final_tags.outputs.tags }}\" | sed -E 's|/.*||' | sort -u | wc -l | tr -d ' ')\n  if [[ $REGISTRY_COUNT -gt 1 ]]; then\n    echo \"> \U0001F4A1 **Note:** Using multiple registries - ensure you've authenticated to each one before this action.\" >> $GITHUB_STEP_SUMMARY\n    echo \"\" >> $GITHUB_STEP_SUMMARY\n  fi\n  if [[ -n \"${{ steps.build.outputs.digest\
+      \ }}\" ]]; then\n    echo \"### \U0001F511 Image Digest\" >> $GITHUB_STEP_SUMMARY\n    echo \"\\`${{ steps.build.outputs.digest }}\\`\" >> $GITHUB_STEP_SUMMARY\n    echo \"\" >> $GITHUB_STEP_SUMMARY\n  fi\n  if [[ -n \"${{ steps.build.outputs.imageid }}\" ]]; then\n    echo \"### \U0001F194 Image ID\" >> $GITHUB_STEP_SUMMARY\n    echo \"\\`${{ steps.build.outputs.imageid }}\\`\" >> $GITHUB_STEP_SUMMARY\n    echo \"\" >> $GITHUB_STEP_SUMMARY\n  fi\n  echo \"### ⚙️ Build Configuration\" >> $GITHUB_STEP_SUMMARY\n\n  # Determine effective values and sources (input wins over config, fallback to default)\n  EFFECTIVE_CONTEXT=\"${{ inputs.context || steps.skyhook_config.outputs.resolved_context || '.' }}\"\n  EFFECTIVE_DOCKERFILE=\"${{ inputs.dockerfile || steps.skyhook_config.outputs.resolved_dockerfile || 'Dockerfile' }}\"\n\n  if [[ -n \"${{ steps.skyhook_config.outputs.config_file }}\" ]]; then\n    echo \"> \U0001F4C4 Config source: \\`${{ steps.skyhook_config.outputs.config_file }}\\\
+      ` (service: \\`${{ steps.skyhook_config.outputs.service_name }}\\`)\" >> $GITHUB_STEP_SUMMARY\n    echo \"\" >> $GITHUB_STEP_SUMMARY\n  fi\n\n  CONTEXT_SOURCE=\"\"\n  if [[ -n \"${{ inputs.context }}\" ]]; then\n    CONTEXT_SOURCE=\" _(from input)_\"\n  elif [[ -n \"${{ steps.skyhook_config.outputs.resolved_context }}\" ]]; then\n    CONTEXT_SOURCE=\" _(from config)_\"\n  fi\n\n  DOCKERFILE_SOURCE=\"\"\n  if [[ -n \"${{ inputs.dockerfile }}\" ]]; then\n    DOCKERFILE_SOURCE=\" _(from input)_\"\n  elif [[ -n \"${{ steps.skyhook_config.outputs.resolved_dockerfile }}\" ]]; then\n    DOCKERFILE_SOURCE=\" _(from config)_\"\n  fi\n\n  echo \"- **Context:** \\`${EFFECTIVE_CONTEXT}\\`${CONTEXT_SOURCE}\" >> $GITHUB_STEP_SUMMARY\n  echo \"- **Dockerfile:** \\`${EFFECTIVE_DOCKERFILE}\\`${DOCKERFILE_SOURCE}\" >> $GITHUB_STEP_SUMMARY\n  echo \"- **Platforms:** \\`${{ inputs.platforms }}\\`\" >> $GITHUB_STEP_SUMMARY\n  echo \"- **Push:** \\`${{ inputs.push }}\\`\" >> $GITHUB_STEP_SUMMARY\n  echo\
+      \ \"- **Load:** \\`${{ inputs.load }}\\`\" >> $GITHUB_STEP_SUMMARY\n  echo \"- **Cache:** \\`${{ inputs.cache_from }}\\` → \\`${{ inputs.cache_to }}\\`\" >> $GITHUB_STEP_SUMMARY\nelse\n  echo \"❌ **Build Status:** Failed\" >> $GITHUB_STEP_SUMMARY\n  echo \"\" >> $GITHUB_STEP_SUMMARY\n  echo \"Check the logs above for error details.\" >> $GITHUB_STEP_SUMMARY\nfi\n"
