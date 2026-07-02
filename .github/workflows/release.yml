@@ -1,7 +1,7 @@
 name: Release
 on:
   push:
-    branches: [main, 1.x]
+    branches: [main]
   workflow_dispatch: {}
 
 permissions:
