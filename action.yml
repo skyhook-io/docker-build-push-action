@@ -9,8 +9,12 @@ branding:
 inputs:
   # Skyhook config-based mode — auto-derive context/dockerfile from .skyhook/skyhook.yaml
   service_name:
-    description: 'Service name to build, as defined in .skyhook/skyhook.yaml (services[].name)'
+    description: 'Service name to build, as defined in .skyhook/skyhook.yaml (services[].name). Inputs `context` / `dockerfile` win over values resolved from this name.'
     required: false
+  working_dir:
+    description: 'Directory containing .skyhook/skyhook.yaml. Empty = auto-detect (prefer ./code, fall back to .). Used as the prefix on resolved context/dockerfile paths.'
+    required: false
+    default: ''
 
   # Manual mode — explicit list of image:tag pairs (newline-delimited). Mix registries as needed.
   tags:
@@ -202,40 +206,85 @@ runs:
       id: skyhook_config
       if: ${{ inputs.service_name != '' && (inputs.context == '' || inputs.dockerfile == '') }}
       shell: bash
-      working-directory: code
+      env:
+        SERVICE_NAME: ${{ inputs.service_name }}
+        WORKING_DIR: ${{ inputs.working_dir }}
+        INPUT_CONTEXT: ${{ inputs.context }}
+        INPUT_DOCKERFILE: ${{ inputs.dockerfile }}
       run: |
         set -euo pipefail
 
-        SERVICE_NAME="${{ inputs.service_name }}"
+        # Locate .skyhook/skyhook.yaml. Explicit `working_dir` wins;
+        # otherwise auto-detect — prefer ./code (Skyhook convention), fall
+        # back to the workspace root. Resolved paths are emitted relative
+        # to whichever dir wins, so the consumer doesn't have to know.
+        # Tolerate `working_dir: code/`, `working_dir: code//`, and
+        # `working_dir: ./code` — emit clean prefixes regardless.
+        WORKING_DIR=${WORKING_DIR#./}
+        while [[ "$WORKING_DIR" == */ ]]; do WORKING_DIR=${WORKING_DIR%/}; done
+        if [[ -n "$WORKING_DIR" ]]; then
+          CANDIDATES=("$WORKING_DIR")
+        else
+          CANDIDATES=("code" ".")
+        fi
 
-        # Find the config file
-        if [[ ! -f ".skyhook/skyhook.yaml" ]]; then
-          echo "::warning::service_name '$SERVICE_NAME' provided but .skyhook/skyhook.yaml not found. Falling back to input parameters."
+        REPO_PREFIX=""
+        CONFIG_FILE=""
+        for d in "${CANDIDATES[@]}"; do
+          if [[ -f "$d/.skyhook/skyhook.yaml" ]]; then
+            REPO_PREFIX="$d"
+            CONFIG_FILE="$d/.skyhook/skyhook.yaml"
+            break
+          fi
+        done
+
+        if [[ -z "$CONFIG_FILE" ]]; then
+          echo "::warning::service_name '$SERVICE_NAME' provided but .skyhook/skyhook.yaml not found in: ${CANDIDATES[*]}. Falling back to input parameters."
           exit 0
         fi
-        CONFIG_FILE=".skyhook/skyhook.yaml"
-        echo "Found config file: $CONFIG_FILE"
+        echo "Found config file: $CONFIG_FILE (prefix: $REPO_PREFIX)"
 
-        # Check if service exists
-        SERVICE_EXISTS=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .name" "$CONFIG_FILE")
+        # yq queries use strenv() so service_name is treated as data, not
+        # a fragment of yq syntax — quote/dollar/backtick-safe.
+        SERVICE_EXISTS=$(yq '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | .[0].name // ""' "$CONFIG_FILE")
         if [[ -z "$SERVICE_EXISTS" ]]; then
           echo "::warning::Service '$SERVICE_NAME' not found in $CONFIG_FILE. Falling back to input parameters."
           exit 0
         fi
-
         echo "Found service '$SERVICE_NAME' in config"
 
-        # Extract build config using yq
-        CONTEXT_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.contextPath // \"\"" "$CONFIG_FILE")
-        DOCKERFILE_PATH=$(yq ".services[] | select(.name == \"$SERVICE_NAME\") | .buildTool.docker.dockerfilePath // \"\"" "$CONFIG_FILE")
+        CONTEXT_PATH=$(yq '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | .[0].buildTool.docker.contextPath // ""' "$CONFIG_FILE")
+        DOCKERFILE_PATH=$(yq '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | .[0].buildTool.docker.dockerfilePath // ""' "$CONFIG_FILE")
+        # `services[].path` is the dockerfile-only fallback when neither
+        # contextPath nor dockerfilePath is set — produces <path>/Dockerfile.
+        SERVICE_PATH=$(yq '(.services // []) | map(select(.name == strenv(SERVICE_NAME))) | .[0].path // ""' "$CONFIG_FILE")
 
-        # Paths in skyhook.yaml are relative to repo root; this step runs in working-directory: code
-        REPO_PREFIX="code"
+        # Normalize "no override" sentinels (`.`, `./`, leading `./`) so we
+        # emit `code/src` instead of `code/./src` and treat a bare `.` as
+        # "use the prefix root". Mirrors koala-backend's canonical resolver.
+        normalize_path() {
+          local v=$1
+          case "$v" in .|./) v="" ;; esac
+          v=${v#./}
+          printf '%s' "$v"
+        }
+        CONTEXT_PATH=$(normalize_path "$CONTEXT_PATH")
+        DOCKERFILE_PATH=$(normalize_path "$DOCKERFILE_PATH")
+        SERVICE_PATH=$(normalize_path "$SERVICE_PATH")
+
+        join_path() {
+          local prefix=$1 sub=$2
+          if [[ "$prefix" == "." ]]; then
+            printf '%s' "$sub"
+          else
+            printf '%s/%s' "$prefix" "$sub"
+          fi
+        }
 
         # Only emit resolved_context if user did not provide inputs.context
-        if [[ -z "${{ inputs.context }}" ]]; then
+        if [[ -z "$INPUT_CONTEXT" ]]; then
           if [[ -n "$CONTEXT_PATH" ]]; then
-            RESOLVED_CONTEXT="$REPO_PREFIX/$CONTEXT_PATH"
+            RESOLVED_CONTEXT=$(join_path "$REPO_PREFIX" "$CONTEXT_PATH")
           else
             RESOLVED_CONTEXT="$REPO_PREFIX"
           fi
@@ -244,12 +293,18 @@ runs:
         fi
 
         # Only emit resolved_dockerfile if user did not provide inputs.dockerfile
-        if [[ -z "${{ inputs.dockerfile }}" ]]; then
+        if [[ -z "$INPUT_DOCKERFILE" ]]; then
+          # Resolution chain: explicit dockerfilePath > contextPath/Dockerfile
+          # > services[].path/Dockerfile. Last step exists so a service that
+          # only sets `path:` (no buildTool block) still resolves to a
+          # sensible Dockerfile location.
           if [[ -z "$DOCKERFILE_PATH" && -n "$CONTEXT_PATH" ]]; then
             DOCKERFILE_PATH="${CONTEXT_PATH}/Dockerfile"
+          elif [[ -z "$DOCKERFILE_PATH" && -n "$SERVICE_PATH" ]]; then
+            DOCKERFILE_PATH="${SERVICE_PATH}/Dockerfile"
           fi
           if [[ -n "$DOCKERFILE_PATH" ]]; then
-            FULL_DOCKERFILE_PATH="$REPO_PREFIX/$DOCKERFILE_PATH"
+            FULL_DOCKERFILE_PATH=$(join_path "$REPO_PREFIX" "$DOCKERFILE_PATH")
             echo "Using dockerfile from config: $FULL_DOCKERFILE_PATH"
             echo "resolved_dockerfile=$FULL_DOCKERFILE_PATH" >> "$GITHUB_OUTPUT"
           fi
